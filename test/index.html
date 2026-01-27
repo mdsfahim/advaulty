@@ -2225,7 +2225,9 @@
         // Added features
         paymentMethods: [], // [{id, name, type}]
         marqueeSettings: { default: "Welcome to AdVault!" },
-        adServices: [] // [{id, type, name, code, active, reward}]
+        adServices: [],
+        popunder: { code: '', active: false },
+        socialBar: { code: '', active: false } // [{id, type, name, code, active, reward}]
     };
 
     // App state
@@ -2261,30 +2263,49 @@
     async function loadUserData(userId) {
         try {
             const doc = await db.collection(USERS_COLLECTION).doc(userId).get();
+            
             if (doc.exists) {
+                // 1. Load existing data
                 const data = doc.data();
                 userData = { ...userData, ...data };
 
-                // --- FIX STARTS HERE ---
-                // Force the global limit from admin settings, ignoring what was saved in the user doc
+                // Apply Admin Limits
                 userData.totalTasks = adminSettings.dailyTasks || 1000;
-                // --- FIX ENDS HERE ---
                 
-                // Ensure paymentInfo exists
+                // Ensure objects exist
                 if (!userData.paymentInfo) userData.paymentInfo = {};
-                if (!userData.joinDate) userData.joinDate = new Date().toISOString();
                 if (!userData.referrals) userData.referrals = 0;
                 if (!userData.totalWithdrawn) userData.totalWithdrawn = 0;
                 
-                console.log("User data loaded from Firestore");
+                // --- FIX START: COLLECT MISSING DATES ---
+                
+                let updates = {};
+                
+                updates.lastUpdated = new Date().toISOString(); 
+    
+    // Backfill join date if missing
+    if (!userData.joinDate) {
+        userData.joinDate = new Date().toISOString();
+        updates.joinDate = userData.joinDate;
+    }
+
+    db.collection(USERS_COLLECTION).doc(userId).set(updates, { merge: true });
+                
+                // --- FIX END ---
+
+                console.log("User data loaded and status updated");
                 return true;
             } else {
+                // 2. New User Setup
                 userData.id = userId;
                 userData.totalTasks = adminSettings.dailyTasks || 1000;
                 userData.paymentInfo = {};
+                
+                // Set Creation Date for new user
                 userData.joinDate = new Date().toISOString();
+                
                 console.log("Creating new user in Firestore");
-                await saveUserData();
+                await saveUserData(); // This function already saves serverTimestamp
                 return false;
             }
         } catch (error) {
@@ -2357,6 +2378,41 @@
                 console.error("Error listening to admin settings:", error);
             });
     }
+
+    // Function to inject Popunder & Social Bar scripts safely
+    function injectPassiveAds() {
+        // 1. Handle Popunder
+        if (adminSettings.popunder && adminSettings.popunder.active && adminSettings.popunder.code) {
+            if (!document.getElementById('ad-script-popunder')) {
+                console.log("Injecting Popunder...");
+                const div = document.createElement('div');
+                div.id = 'ad-script-popunder';
+                div.style.display = 'none';
+                document.body.appendChild(div);
+
+                const range = document.createRange();
+                range.selectNode(document.body);
+                const fragment = range.createContextualFragment(adminSettings.popunder.code);
+                div.appendChild(fragment);
+            }
+        }
+
+        // 2. Handle Social Bar
+        if (adminSettings.socialBar && adminSettings.socialBar.active && adminSettings.socialBar.code) {
+            if (!document.getElementById('ad-script-socialbar')) {
+                console.log("Injecting Social Bar...");
+                const div = document.createElement('div');
+                div.id = 'ad-script-socialbar';
+                div.style.display = 'none';
+                document.body.appendChild(div);
+
+                const range = document.createRange();
+                range.selectNode(document.body);
+                const fragment = range.createContextualFragment(adminSettings.socialBar.code);
+                div.appendChild(fragment);
+            }
+        }
+    }
     
     function applyAdminSettings() {
         userData.totalTasks = adminSettings.dailyTasks || 1000;
@@ -2402,42 +2458,38 @@
         if (document.getElementById('instructionMinWithdrawal')) {
             document.getElementById('instructionMinWithdrawal').textContent = adminSettings.minWithdrawal || 100;
         }
-        
-    
 
-    // --- NEW CODE STARTS HERE ---
-    if (document.getElementById('appLastUpdated')) {
-        if (adminSettings.lastUpdated) {
-            const dateObj = new Date(adminSettings.lastUpdated);
-            // Format example: "Oct 25, 2025"
-            const formattedDate = dateObj.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-            });
-            document.getElementById('appLastUpdated').textContent = formattedDate;
-        } else {
-            document.getElementById('appLastUpdated').textContent = "Not Available";
+        // System Info Updates
+        if (document.getElementById('appLastUpdated')) {
+            if (adminSettings.lastUpdated) {
+                const dateObj = new Date(adminSettings.lastUpdated);
+                const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                document.getElementById('appLastUpdated').textContent = formattedDate;
+            } else {
+                document.getElementById('appLastUpdated').textContent = "Not Available";
+            }
         }
-    }
-    if (document.getElementById('displayVersion')) {
-        document.getElementById('displayVersion').textContent = adminSettings.appVersion || '2.1.1';
-    }
-    
-    if (document.getElementById('displayBuildNumber')) { // Make sure ID matches HTML
-        // Note: In your original file the ID was 'buildNumber', 
-        // I changed it to 'displayBuildNumber' in HTML step above to avoid conflict with admin var
-        document.getElementById('displayBuildNumber').textContent = adminSettings.buildNumber || 'AV20250902';
-    }
-    
-    // --- NEW CODE ENDS HERE ---
-
+        if (document.getElementById('displayVersion')) {
+            document.getElementById('displayVersion').textContent = adminSettings.appVersion || '2.1.1';
+        }
+        
+        if (document.getElementById('displayBuildNumber')) {
+            document.getElementById('displayBuildNumber').textContent = adminSettings.buildNumber || 'AV20250902';
+        }
    
         // Render dynamic features
         renderMarquee();
         renderDynamicPaymentUI();
         renderProfilePaymentMethods();
         renderNewPaymentGrid();
+        
+        // Inject Passive Ads (Popunder/Social Bar)
+        injectPassiveAds();
+        
         renderExtraAds();
         
         updateUI();

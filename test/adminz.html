@@ -1402,8 +1402,12 @@
     <div class="nav-link-item"><i class="fas fa-bell"></i> Notifications</div>
 </li>
     <li class="nav-item" data-section="content">
-        <div class="nav-link-item"><i class="fas fa-layer-group"></i> Content & Ads</div>
-    </li>
+    <div class="nav-link-item"><i class="fas fa-newspaper"></i> Content</div>
+</li>
+
+<li class="nav-item" data-section="ads">
+    <div class="nav-link-item"><i class="fas fa-ad"></i> Ads Manager</div>
+</li>
     <li class="nav-item" data-section="settings">
         <div class="nav-link-item"><i class="fas fa-cog"></i> Settings</div>
     </li>
@@ -1760,101 +1764,154 @@
 </section>
             <!-- Content & Ads Section -->
             <section id="contentSection" class="section" style="display: none;">
-                <div class="content-grid">
-                    <!-- Marquee Management -->
-                    <div class="content-card">
-                        <h3 class="chart-title" style="margin-bottom: 1.5rem;">📢 Flash Text (Marquee)</h3>
-                        <div class="grid-inputs">
-                            <div class="form-group">
-                                <label>Country Code (e.g. BD, US)</label>
-                                <input type="text" id="mqCountry" class="form-control" placeholder="Country Code" maxlength="2" style="text-transform: uppercase;">
-                            </div>
-                            <div class="form-group">
-                                <label>Marquee Text Message</label>
-                                <input type="text" id="mqText" class="form-control" placeholder="Enter marquee text...">
-                            </div>
-                        </div>
-                        <button onclick="addMarquee()" class="btn-primary">
-                            <i class="fas fa-plus"></i> Add/Update Marquee
-                        </button>
-                        
-                        <div style="margin-top: 1.5rem; background: var(--bg-secondary); border-radius: 10px; padding: 1rem;">
-                            <h4 style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Active Marquees</h4>
-                            <div id="marqueeList">
-                                <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No marquees added yet</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Payment Methods -->
-                    <div class="content-card">
-                        <h3 class="chart-title" style="margin-bottom: 1.5rem;">💳 Payment Methods</h3>
-                        <div class="grid-inputs">
-                            <div class="form-group">
-                                <label>Method Name</label>
-                                <input type="text" id="pmName" class="form-control" placeholder="e.g. Binance, PayPal">
-                            </div>
-                            <div class="form-group">
-                                <label>Input Type</label>
-                                <select id="pmType" class="form-control">
-                                    <option value="text">Text Input (ID/Wallet)</option>
-                                    <option value="email">Email Address</option>
-                                    <option value="number">Phone Number</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button onclick="addPaymentMethod()" class="btn-primary">
-                            <i class="fas fa-plus"></i> Add Payment Method
-                        </button>
-                        
-                        <div style="margin-top: 1.5rem; background: var(--bg-secondary); border-radius: 10px; padding: 1rem;">
-                            <h4 style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Available Payment Methods</h4>
-                            <div id="paymentMethodList">
-                                <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No payment methods added yet</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Ad Services -->
-                    <div class="content-card">
-                        <h3 class="chart-title" style="margin-bottom: 1.5rem;">🚀 Ad Services (Adsterra)</h3>
-                        <div class="form-group">
-                            <label>Internal Name</label>
-                            <input type="text" id="adName" class="form-control" placeholder="e.g. Home Banner 320x50">
-                        </div>
-                        <div class="form-group">
-                            <label>Ad Type</label>
-                            <select id="adType" class="form-control">
-                                <option value="banner">Banner (Script)</option>
-                                <option value="native">Native Banner (Script)</option>
-                                <option value="smartlink">Smartlink (URL)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Script Code or URL</label>
-                            <textarea id="adCode" rows="4" class="form-control" placeholder="Paste script code or URL here..."></textarea>
-                        </div>
-                       
-                        <div class="form-group">
-    <label>Reward Amount (BDT)</label>
-    <input type="number" id="adReward" class="form-control" placeholder="0.10" step="0.01" min="0.01">
-    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-        How much user earns for this specific task
-    </div>
-</div>
-
-<button onclick="addAdService()" class="btn-primary">
-    <i class="fas fa-save"></i> Save Ad Service
-</button>
-                        <div style="margin-top: 1.5rem; background: var(--bg-secondary); border-radius: 10px; padding: 1rem;">
-                            <h4 style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Active Ad Configs</h4>
-                            <div id="adServiceList">
-                                <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No ad services added yet</p>
-                            </div>
-                        </div>
-                    </div>
+    <div class="content-grid">
+        <div class="content-card">
+            <h3 class="chart-title" style="margin-bottom: 1.5rem;">📢 Flash Text (Marquee)</h3>
+            <div class="grid-inputs">
+                <div class="form-group">
+                    <label>Country Code (e.g. BD, US)</label>
+                    <input type="text" id="mqCountry" class="form-control" placeholder="Country Code" maxlength="2" style="text-transform: uppercase;">
                 </div>
-            </section>
+                <div class="form-group">
+                    <label>Marquee Text Message</label>
+                    <input type="text" id="mqText" class="form-control" placeholder="Enter marquee text...">
+                </div>
+            </div>
+            <button onclick="addMarquee()" class="btn-primary">
+                <i class="fas fa-plus"></i> Add/Update Marquee
+            </button>
+            
+            <div style="margin-top: 1.5rem; background: var(--bg-secondary); border-radius: 10px; padding: 1rem;">
+                <h4 style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Active Marquees</h4>
+                <div id="marqueeList">
+                    <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No marquees added yet</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <h3 class="chart-title" style="margin-bottom: 1.5rem;">💳 Payment Methods</h3>
+            <div class="grid-inputs">
+                <div class="form-group">
+                    <label>Method Name</label>
+                    <input type="text" id="pmName" class="form-control" placeholder="e.g. Binance, PayPal">
+                </div>
+                <div class="form-group">
+                    <label>Input Type</label>
+                    <select id="pmType" class="form-control">
+                        <option value="text">Text Input (ID/Wallet)</option>
+                        <option value="email">Email Address</option>
+                        <option value="number">Phone Number</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="addPaymentMethod()" class="btn-primary">
+                <i class="fas fa-plus"></i> Add Payment Method
+            </button>
+            
+            <div style="margin-top: 1.5rem; background: var(--bg-secondary); border-radius: 10px; padding: 1rem;">
+                <h4 style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Available Payment Methods</h4>
+                <div id="paymentMethodList">
+                    <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No payment methods added yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="adsSection" class="section" style="display: none;">
+    <div class="content-grid">
+         <div class="content-card" style="border-left: 5px solid #8b5cf6;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 class="chart-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-window-restore" style="color: #8b5cf6;"></i> Popunder Ads
+                </h3>
+                
+                <button id="popunderToggleBtn" onclick="togglePopunder()" class="btn" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s;">
+                    <i class="fas fa-power-off"></i>
+                </button>
+            </div>
+            
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Paste the Popunder script (JS) here. This runs automatically in the background.
+            </p>
+
+            <div class="form-group">
+                <textarea id="popunderScript" rows="4" class="form-control" placeholder="<script>...popunder code...</script>" style="font-family: monospace; font-size: 0.8rem;"></textarea>
+            </div>
+
+            <button onclick="savePopunder()" class="btn-primary" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                <i class="fas fa-save"></i> Save Popunder
+            </button>
+        </div>
+
+        <div class="content-card" style="border-left: 5px solid #ec4899;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 class="chart-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-comment-alt" style="color: #ec4899;"></i> Social Bar
+                </h3>
+                
+                <button id="socialBarToggleBtn" onclick="toggleSocialBar()" class="btn" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s;">
+                    <i class="fas fa-power-off"></i>
+                </button>
+            </div>
+            
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                Paste the Social Bar script here. It floats over the app content.
+            </p>
+
+            <div class="form-group">
+                <textarea id="socialBarScript" rows="4" class="form-control" placeholder="<script>...social bar code...</script>" style="font-family: monospace; font-size: 0.8rem;"></textarea>
+            </div>
+
+            <button onclick="saveSocialBar()" class="btn-primary" style="background: linear-gradient(135deg, #ec4899, #db2777);">
+                <i class="fas fa-save"></i> Save Social Bar
+            </button>
+        </div>
+        <div class="content-card" style="grid-column: 1 / -1;">
+            <h3 class="chart-title" style="margin-bottom: 1.5rem;">🚀 Ad Services (Adsterra)</h3>
+            
+            <div class="grid-inputs">
+                <div class="form-group">
+                    <label>Internal Name</label>
+                    <input type="text" id="adName" class="form-control" placeholder="e.g. Home Banner 320x50">
+                </div>
+                <div class="form-group">
+                    <label>Ad Type</label>
+                    <select id="adType" class="form-control">
+                        <option value="banner">Banner (Script)</option>
+                        <option value="native">Native Banner (Script)</option>
+                        <option value="smartlink">Smartlink (URL)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Script Code or URL</label>
+                <textarea id="adCode" rows="4" class="form-control" placeholder="Paste script code or URL here..."></textarea>
+            </div>
+           
+            <div class="form-group">
+                <label>Reward Amount (BDT)</label>
+                <input type="number" id="adReward" class="form-control" placeholder="0.10" step="0.01" min="0.01">
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                    How much user earns for this specific task
+                </div>
+            </div>
+
+            <button onclick="addAdService()" class="btn-primary">
+                <i class="fas fa-save"></i> Save Ad Service
+            </button>
+
+            <div style="margin-top: 1.5rem; background: var(--bg-secondary); border-radius: 10px; padding: 1rem;">
+                <h4 style="font-weight: 600; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">Active Ad Configs</h4>
+                <div id="adServiceList">
+                    <p style="text-align: center; color: var(--text-secondary); padding: 1rem;">No ad services added yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
             <!-- Settings Section -->
             <section id="settingsSection" class="section" style="display: none;">
@@ -2178,9 +2235,11 @@
         let contentSettings = {
             marqueeSettings: {},
             paymentMethods: [],
-            adServices: []
+            adServices: [],
+            // Add these two:
+            popunder: { code: '', active: false },
+            socialBar: { code: '', active: false }
         };
-
         // Check login from localStorage
         function checkLogin() {
             const savedLogin = localStorage.getItem('advault_admin_logged_in');
@@ -2504,16 +2563,82 @@ async function deleteNotification(id) {
                     if (data.paymentMethods) contentSettings.paymentMethods = data.paymentMethods;
                     if (data.adServices) contentSettings.adServices = data.adServices;
                     
+                    // NEW: Load Popunder & Social Bar
+                    if (data.popunder) contentSettings.popunder = data.popunder;
+                    if (data.socialBar) contentSettings.socialBar = data.socialBar;
+                    
+                    // Render Lists
                     renderMarqueeList();
                     renderPaymentMethodList();
                     renderAdServiceList();
+                    
+                    // NEW: Render Inputs & Toggles
+                    updateAdBlockUI();
                 }
             } catch (error) {
                 console.error("Error loading content settings:", error);
             }
         }
 
-        // Save content settings
+        // Helper to update the UI state
+        function updateAdBlockUI() {
+            // Popunder
+            document.getElementById('popunderScript').value = contentSettings.popunder.code || '';
+            const popBtn = document.getElementById('popunderToggleBtn');
+            if(contentSettings.popunder.active) {
+                popBtn.style.background = '#dcfce7';
+                popBtn.style.color = '#166534';
+            } else {
+                popBtn.style.background = '#fee2e2';
+                popBtn.style.color = '#991b1b';
+            }
+
+            // Social Bar
+            document.getElementById('socialBarScript').value = contentSettings.socialBar.code || '';
+            const socialBtn = document.getElementById('socialBarToggleBtn');
+            if(contentSettings.socialBar.active) {
+                socialBtn.style.background = '#dcfce7';
+                socialBtn.style.color = '#166534';
+            } else {
+                socialBtn.style.background = '#fee2e2';
+                socialBtn.style.color = '#991b1b';
+            }
+        }
+        
+        // --- POPUNDER FUNCTIONS ---
+        async function savePopunder() {
+            const code = document.getElementById('popunderScript').value.trim();
+            contentSettings.popunder.code = code;
+            
+            // We save the whole settings object
+            await saveContentSettings();
+            showToast('Popunder script saved!', 'success');
+        }
+
+        async function togglePopunder() {
+            contentSettings.popunder.active = !contentSettings.popunder.active;
+            await saveContentSettings();
+            updateAdBlockUI();
+            showToast(`Popunder ${contentSettings.popunder.active ? 'Enabled' : 'Disabled'}`, 'info');
+        }
+
+        // --- SOCIAL BAR FUNCTIONS ---
+        async function saveSocialBar() {
+            const code = document.getElementById('socialBarScript').value.trim();
+            contentSettings.socialBar.code = code;
+            
+            await saveContentSettings();
+            showToast('Social Bar script saved!', 'success');
+        }
+
+        async function toggleSocialBar() {
+            contentSettings.socialBar.active = !contentSettings.socialBar.active;
+            await saveContentSettings();
+            updateAdBlockUI();
+            showToast(`Social Bar ${contentSettings.socialBar.active ? 'Enabled' : 'Disabled'}`, 'info');
+        }
+        
+        // Save content settings (Fixed: Includes Popunder & Social Bar)
         async function saveContentSettings() {
             try {
                 await db.collection(USERS_COLLECTION).doc(ADMIN_SETTINGS_DOC_ID).set({
@@ -2521,6 +2646,10 @@ async function deleteNotification(id) {
                     marqueeSettings: contentSettings.marqueeSettings,
                     paymentMethods: contentSettings.paymentMethods,
                     adServices: contentSettings.adServices,
+                    // NEW: Ensure these are saved
+                    popunder: contentSettings.popunder,
+                    socialBar: contentSettings.socialBar,
+                    
                     lastUpdated: new Date().toISOString()
                 }, { merge: true });
                 
@@ -2532,6 +2661,7 @@ async function deleteNotification(id) {
                 return false;
             }
         }
+      
 
         // Set up real-time listener for settings
         function setupSettingsListener() {
@@ -2828,32 +2958,86 @@ async function deleteNotification(id) {
         }
 
         // Update dashboard statistics
+        // Update dashboard statistics
         function updateDashboardStats() {
+            // 1. Calculate Totals
             const totalUsers = users.length;
             const totalBalance = users.reduce((sum, user) => sum + (user.balance || 0), 0);
             const totalEarnings = users.reduce((sum, user) => sum + (user.totalEarnings || 0), 0);
             const totalWithdrawals = withdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
             const pendingWithdrawals = withdrawals.filter(w => w.status === 'pending').length;
 
-            document.getElementById('totalUsers').textContent = totalUsers.toLocaleString();
-            document.getElementById('userCount').textContent = totalUsers.toLocaleString();
-            document.getElementById('systemUserCount').textContent = totalUsers.toLocaleString();
-            document.getElementById('totalBalance').textContent = `BDT ${totalBalance.toFixed(2)}`;
-            document.getElementById('totalEarnings').textContent = `BDT ${totalEarnings.toFixed(2)}`;
-            document.getElementById('totalWithdrawals').textContent = `BDT ${totalWithdrawals.toFixed(2)}`;
-            document.getElementById('withdrawalsGrowth').textContent = `${pendingWithdrawals} pending`;
+            // 2. Calculate "Today" Stats safely
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            // Count users who joined today
+            const newUsersToday = users.filter(u => {
+                const date = getSafeDate(u.joinDate);
+                if (!date) return false;
+                return date.toISOString().startsWith(todayStr);
+            }).length;
+
+            // Count users active today
+            const activeToday = users.filter(u => {
+                const date = getSafeDate(u.lastUpdated);
+                if (!date) return false;
+                return date.toISOString().startsWith(todayStr);
+            }).length;
+
+            // 3. Update UI Elements
+            if(document.getElementById('totalUsers')) document.getElementById('totalUsers').textContent = totalUsers.toLocaleString();
+            if(document.getElementById('userCount')) document.getElementById('userCount').textContent = totalUsers.toLocaleString();
+            if(document.getElementById('systemUserCount')) document.getElementById('systemUserCount').textContent = totalUsers.toLocaleString();
+            
+            if(document.getElementById('totalBalance')) document.getElementById('totalBalance').textContent = `BDT ${totalBalance.toFixed(2)}`;
+            if(document.getElementById('totalEarnings')) document.getElementById('totalEarnings').textContent = `BDT ${totalEarnings.toFixed(2)}`;
+            if(document.getElementById('totalWithdrawals')) document.getElementById('totalWithdrawals').textContent = `BDT ${totalWithdrawals.toFixed(2)}`;
+            
+            const userGrowthEl = document.getElementById('usersGrowth');
+            if(userGrowthEl) {
+                userGrowthEl.textContent = `+${newUsersToday} joined today`;
+                userGrowthEl.style.color = newUsersToday > 0 ? '#166534' : 'var(--text-secondary)';
+            }
+
+            const balanceGrowthEl = document.getElementById('balanceGrowth');
+            if(balanceGrowthEl) {
+                balanceGrowthEl.textContent = `${activeToday} active today`;
+                balanceGrowthEl.style.color = activeToday > 0 ? '#166534' : 'var(--text-secondary)';
+            }
+
+            const withdrawalsGrowthEl = document.getElementById('withdrawalsGrowth');
+            if(withdrawalsGrowthEl) {
+                withdrawalsGrowthEl.textContent = `${pendingWithdrawals} pending`;
+                withdrawalsGrowthEl.style.color = pendingWithdrawals > 0 ? '#d97706' : 'var(--text-secondary)';
+            }
 
             // Analytics stats
-            const activeUsers = users.filter(u => u.telegramDetected).length;
-            const avgEarnings = activeUsers > 0 ? totalEarnings / activeUsers : 0;
+            const avgEarnings = activeToday > 0 ? totalEarnings / activeToday : 0;
             const totalAdsWatched = users.reduce((sum, user) => sum + (user.adsWatched || 0), 0);
             const completionRate = users.length > 0 ? (users.reduce((sum, user) => sum + (user.completedTasks || 0), 0) / (users.length * 1000)) * 100 : 0;
 
-            document.getElementById('activeUsers').textContent = activeUsers.toLocaleString();
-            document.getElementById('avgEarnings').textContent = `BDT ${avgEarnings.toFixed(2)}`;
-            document.getElementById('totalAdsWatched').textContent = totalAdsWatched.toLocaleString();
-            document.getElementById('completionRate').textContent = `${completionRate.toFixed(1)}%`;
+            if(document.getElementById('activeUsers')) document.getElementById('activeUsers').textContent = activeToday.toLocaleString();
+            if(document.getElementById('avgEarnings')) document.getElementById('avgEarnings').textContent = `BDT ${avgEarnings.toFixed(2)}`;
+            if(document.getElementById('totalAdsWatched')) document.getElementById('totalAdsWatched').textContent = totalAdsWatched.toLocaleString();
+            if(document.getElementById('completionRate')) document.getElementById('completionRate').textContent = `${completionRate.toFixed(1)}%`;
         }
+        // Helper to safely parse dates from any format (String, Timestamp, null)
+function getSafeDate(dateInput) {
+    if (!dateInput) return null;
+    
+    // Handle Firestore Timestamp objects (seconds/nanoseconds)
+    if (dateInput && typeof dateInput === 'object' && dateInput.seconds) {
+        return new Date(dateInput.seconds * 1000);
+    }
+    
+    // Handle standard strings/numbers
+    const date = new Date(dateInput);
+    
+    // Check if valid
+    if (isNaN(date.getTime())) return null;
+    
+    return date;
+}
 
         // Update recent activity
         function updateRecentActivity() {
@@ -2945,31 +3129,33 @@ async function deleteNotification(id) {
             const tbody = document.getElementById('usersTableBody');
             
             if (paginatedUsers.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="10" style="text-align: center; padding: 2rem;">
-                            No users found
-                        </td>
-                    </tr>
-                `;
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; padding: 2rem;">No users found</td></tr>`;
                 return;
             }
 
             let html = '';
             paginatedUsers.forEach(user => {
-                const lastActive = user.lastUpdated ? 
-                    new Date(user.lastUpdated).toLocaleDateString() : 'Never';
+                // USE SAFE DATE HERE
+                const safeDate = getSafeDate(user.lastUpdated);
+                const lastActive = safeDate ? safeDate.toLocaleString() : 'Never';
+                    
                 const statusClass = user.telegramDetected ? 'status-active' : 'status-inactive';
                 const statusText = user.telegramDetected ? 'Active' : 'Inactive';
+                
+                let avatarHtml;
+                if (user.profilePhoto) {
+                    avatarHtml = `<img src="${user.profilePhoto}" class="user-avatar" alt="User">`;
+                } else {
+                    const initial = user.name ? user.name.charAt(0).toUpperCase() : (user.username ? user.username.charAt(0).toUpperCase() : 'U');
+                    avatarHtml = `<div class="user-avatar">${initial}</div>`;
+                }
                 
                 html += `
                     <tr>
                         <td style="font-family: monospace; font-size: 0.85rem;">${user.id.substring(0, 8)}...</td>
                         <td>
                             <div style="display: flex; align-items: center; gap: 10px;">
-                                <div class="user-avatar">
-                                    ${user.name ? user.name.charAt(0).toUpperCase() : (user.username ? user.username.charAt(0).toUpperCase() : 'U')}
-                                </div>
+                                ${avatarHtml}
                                 <div>
                                     <div style="font-weight: 500;">${user.name || 'N/A'}</div>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary);">
@@ -3873,73 +4059,79 @@ html += `
             // Check login
             checkLogin();
 
-            // Navigation
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const section = item.dataset.section;
-                    
-                    // Handle logout
-                    if (section === 'logout') {
-                        logout();
-                        return;
-                    }
-                    
-                    
-                    // Update active nav item
-                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                    
-                    // Update page title
-                    const titles = {
-                        dashboard: 'Dashboard Overview',
-                        analytics: 'Analytics & Insights',
-                        users: 'User Management',
-                        withdrawals: 'Withdrawal Requests',
-                        content: 'Content & Ads Management',
-                        settings: 'System Settings'
-                    };
-                    
-                    const subtitles = {
-                        dashboard: 'Welcome to AdVault Admin Panel',
-                        analytics: 'Detailed analytics and insights',
-                        users: 'Manage all user accounts',
-                        withdrawals: 'Process withdrawal requests',
-                        content: 'Manage marquees, payments and ads',
-                        settings: 'Configure system settings'
-                    };
-                    
-                    document.getElementById('pageTitle').textContent = titles[section];
-                    document.getElementById('pageSubtitle').textContent = subtitles[section];
-                    
-                    // Show selected section
-                    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
-                    document.getElementById(`${section}Section`).style.display = 'block';
-                    
-                    if (section === 'notifications') {
-    loadNotifications();
-}
-                    // Setup auto-save listeners when settings section is shown
-                    if (section === 'settings') {
-                        setTimeout(() => {
-                            setupAutoSaveListeners();
-                        }, 100);
-                    }
-                    
-                    // Load content data when content section is shown
-                    if (section === 'content') {
-                        renderMarqueeList();
-                        renderPaymentMethodList();
-                        renderAdServiceList();
-                    }
-                    
-                    // Close sidebar on mobile
-                    if (window.innerWidth <= 1024) {
-                        document.getElementById('sidebar').classList.remove('active');
-                        document.getElementById('sidebarOverlay').classList.remove('active');
-                    }
-                });
-            });
+           // Navigation Logic
+document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const section = item.dataset.section;
+        
+        // Handle logout
+        if (section === 'logout') {
+            logout();
+            return;
+        }
+        
+        // Update active nav item
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        
+        // Update page title
+        const titles = {
+            dashboard: 'Dashboard Overview',
+            analytics: 'Analytics & Insights',
+            users: 'User Management',
+            withdrawals: 'Withdrawal Requests',
+            notifications: 'Push Notifications',
+            content: 'Content Management',  // Updated
+            ads: 'Ads Manager',             // New
+            settings: 'System Settings'
+        };
+        
+        const subtitles = {
+            dashboard: 'Welcome to AdVault Admin Panel',
+            analytics: 'Detailed analytics and insights',
+            users: 'Manage all user accounts',
+            withdrawals: 'Process withdrawal requests',
+            notifications: 'Send messages to users',
+            content: 'Manage marquees and payment methods', // Updated
+            ads: 'Configure Adsterra scripts',      // New
+            settings: 'Configure system settings'
+        };
+        
+        document.getElementById('pageTitle').textContent = titles[section] || 'Admin Panel';
+        document.getElementById('pageSubtitle').textContent = subtitles[section] || 'Control Panel';
+        
+        // Show selected section
+        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+        document.getElementById(`${section}Section`).style.display = 'block';
+        
+        // Load specific data based on section
+        if (section === 'notifications') {
+            loadNotifications();
+        }
+        
+        if (section === 'settings') {
+            setTimeout(() => { setupAutoSaveListeners(); }, 100);
+        }
+        
+        // Load Content Data (Flash Text & Payments)
+        if (section === 'content') {
+            renderMarqueeList();
+            renderPaymentMethodList();
+        }
+
+        // Load Ads Data (Ad Services)
+        if (section === 'ads') {
+            renderAdServiceList();
+        }
+        
+        // Close sidebar on mobile
+        if (window.innerWidth <= 1024) {
+            document.getElementById('sidebar').classList.remove('active');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+        }
+    });
+});
 
             // Theme toggle (desktop)
             document.getElementById('themeToggle').addEventListener('click', () => {
