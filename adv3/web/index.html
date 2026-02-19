@@ -103,7 +103,7 @@
   </div>
 
   <!-- Telegram Warning Popup -->
- <div id="telegramWarningPopup" style="display: none;">
+<div id="telegramWarningPopup" style="display: none;">
     <div class="security-pattern"></div>
 
     <div class="warning-card">
@@ -121,19 +121,20 @@
             AdVault is designed to run exclusively within the Telegram app to ensure account security and proper reward tracking.
         </p>
 
-        <a href="https://t.me/AdVault_2bot" class="open-bot-btn">
+        <a href="https://t.me/AdVault_3bot" class="open-bot-btn">
             <i class="fab fa-telegram-plane text-xl"></i>
             <span>Open Telegram Bot</span>
         </a>
 
         <div class="manual-link">
-            <a href="#" onclick="document.getElementById('telegramWarningPopup').style.display='none'; return false;">
-                Continue in Browser (Limited)
+            <a href="#" onclick="location.reload(); return false;">
+                <i class="fas fa-sync-alt mr-1"></i> Refresh Page
             </a>
         </div>
         
     </div>
   </div>
+
   <!-- Instructions Popup -->
 <div id="instructionsPopup" class="notif-overlay" onclick="hideInstructionsPopup()" style="display: none;">
   <div class="notif-panel" onclick="event.stopPropagation()">
