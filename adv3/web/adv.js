@@ -25,6 +25,7 @@
         name: "",
         username: "",
         balance: 0.00,
+        spinKeys: 0,
         totalEarnings: 0.00,
         adsWatched: 0,
         completedTasks: 0,
@@ -788,100 +789,79 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
     // --- Dynamic Extra Ads Rendering ---
     // --- Dynamic Extra Ads Rendering (Updated Style) ---
     
-    function renderBannerAds(activeSection) {
-    const earnCont = document.getElementById('earnBannerContainer');
-    const homeCont = document.getElementById('homeBannerContainer');
-    const profileCont = document.getElementById('profileBannerContainer');
+    // --- Updated Banner & Native Ad Rendering ---
+function renderBannerAds(activeSection) {
+    const ads = adminSettings.adServices || [];
 
-    // Get active banners from Admin Settings
-    const banners = adminSettings.adServices?.filter(s => s.active && s.type === 'banner') || [];
-    
-    if (banners.length === 0) return;
+    // Helper function to safely inject ads if the container is empty
+    const injectAd = (containerId, expectedType, expectedPlacement) => {
+        const container = document.getElementById(containerId);
+        if (!container || container.innerHTML.trim() !== "") return; // Skip if missing or already loaded
 
-    // ==========================================
-    // 1. DISTRIBUTE BANNERS BASED ON COUNT
-    // ==========================================
-    let earnAds = [];
-    let homeAd = null;
-    let profileAd = null;
+        // Find the specific ad that matches the rules
+        const ad = ads.find(a => 
+            a.active && 
+            a.type === expectedType && 
+            (expectedPlacement ? a.placement === expectedPlacement : true)
+        );
 
-    if (banners.length > 0) earnAds.push(banners[0]); // 1st banner goes to Earn
-    if (banners.length > 1) homeAd = banners[1];      // 2nd banner goes to Home
-    if (banners.length > 2) profileAd = banners[2];   // 3rd banner goes to Profile
-    
-    // If more than 3, add all the rest to Earn
-    if (banners.length > 3) {
-        for (let i = 3; i < banners.length; i++) {
-            earnAds.push(banners[i]);
+        if (ad && ad.code) {
+            console.log(`Loading ${expectedType} ad for ${containerId}...`);
+            insertAdHTML(container, ad.code);
         }
-    }
+    };
 
-    // ==========================================
-    // 2. SAFE LOAD LOGIC: ONLY INJECT IF EMPTY
-    // ==========================================
-    
-    // HOME SECTION
-    if (activeSection === 'home-section' && homeCont && homeCont.innerHTML.trim() === "") {
-        if (homeAd) {
-            console.log("Loading Home Ad safely...");
-            insertAdHTML(homeCont, homeAd.code);
-        }
+    // Route the injection based on the active tab
+    if (activeSection === 'home-section') {
+        injectAd('homeBannerContainer', 'banner', 'home');
     } 
-    
-    // PROFILE SECTION
-    else if (activeSection === 'profile-section' && profileCont && profileCont.innerHTML.trim() === "") {
-        if (profileAd) {
-            console.log("Loading Profile Ad safely...");
-            insertAdHTML(profileCont, profileAd.code);
-        }
+    else if (activeSection === 'earn-section') {
+        injectAd('earnBannerContainer', 'banner', 'earn');
     } 
-    
-    // EARN SECTION
-    else if (activeSection === 'earn-section' && earnCont && earnCont.innerHTML.trim() === "") {
-        if (earnAds.length > 0) {
-            console.log("Loading Earn Ad(s) safely...");
-            earnAds.forEach(ad => {
-                insertAdHTML(earnCont, ad.code);
-            });
-        }
+    else if (activeSection === 'games-section') {
+        // NOTE: Make sure to add this section trigger in your showSection() function!
+        injectAd('gameBannerContainer', 'banner', 'game');
+    } 
+    else if (activeSection === 'profile-section') {
+        injectAd('profileBannerContainer', 'banner', 'profile');
+        injectAd('profileNativeContainer', 'native', null); // Native doesn't need placement check
     }
 }
-    // --- Dynamic Extra Ads Rendering (Updated) ---
-    function renderExtraAds() {
-        const container = document.getElementById('extraTasksContainer');
-        const noAdsMsg = document.getElementById('noAdsMsg');
-        
-        if (!container) return;
-        
-        container.innerHTML = '';
-        
-        // FIX: Filter out items that are 'banner' type
-        // We only want 'smartlink', 'iframe', or undefined types to show as Gift Boxes
-        const validTasks = adminSettings.adServices?.filter(s => s.active && s.type !== 'banner') || [];
-        
-        if (validTasks.length === 0) {
-            if (noAdsMsg) noAdsMsg.classList.remove('hidden');
-            return;
-        } else {
-            if (noAdsMsg) noAdsMsg.classList.add('hidden');
-        }
 
-        validTasks.forEach(service => {
-            const card = document.createElement('div');
-            card.className = "extra-earn-card";
-            card.innerHTML = `
-                <i class="fas fa-gift extra-gift-icon"></i>
-                <div class="relative z-10">
-                    <h2 class="text-xl font-bold mb-0.5">${service.name || 'Bonus Task'}</h2>
-                    <p class="text-xs opacity-90 mb-2">Reward: +${service.reward || 0.10} BDT</p>
-                    <button class="extra-btn" onclick="startSpecificAd('${service.id}')">
-                        <i class="fas fa-box-open mr-1"></i> Open & Earn
-                    </button>
-                </div>
-            `;
-            container.appendChild(card);
-        });
+// --- Updated Smart Link Rendering ---
+function renderExtraAds() {
+    const container = document.getElementById('extraTasksContainer');
+    const noAdsMsg = document.getElementById('noAdsMsg');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // STRICT FILTER: Only show 'smartlink' types in the Extra Tasks box
+    const validTasks = adminSettings.adServices?.filter(s => s.active && s.type === 'smartlink') || [];
+    
+    if (validTasks.length === 0) {
+        if (noAdsMsg) noAdsMsg.classList.remove('hidden');
+        return;
+    } else {
+        if (noAdsMsg) noAdsMsg.classList.add('hidden');
     }
+
+    validTasks.forEach(service => {
+        const card = document.createElement('div');
+        card.className = "extra-earn-card";
+        card.innerHTML = `
+            <i class="fas fa-gift extra-gift-icon"></i>
+            <div class="relative z-10">
+                <h2 class="text-xl font-bold mb-0.5">${service.name || 'Bonus Task'}</h2>
+                <p class="text-xs opacity-90 mb-2">Reward: +${service.reward || 0.10} BDT</p>
+                <button class="extra-btn" onclick="startSpecificAd('${service.id}')">
+                    <i class="fas fa-box-open mr-1"></i> Open & Earn
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
    // --- Dynamic Ad Popup with Timer & Smartlink Verification ---
     // --- Dynamic Ad Popup with New UI ---
     window.startSpecificAd = function(serviceId) {
@@ -1515,7 +1495,11 @@ function dismissDroid(element, animClass) {
             document.getElementById('new-withdraw-total-earn').textContent = `BDT ${userData.totalEarnings.toFixed(2)}`;
             document.getElementById('new-withdraw-total-out').textContent = `BDT ${userData.totalWithdrawn.toFixed(2)}`;
         }
-
+// Update mini-avatar in the new bottom navigation
+    if (userData.profilePhoto) {
+        const navProfileImg = document.getElementById('nav-profile-img');
+        if (navProfileImg) navProfileImg.src = userData.profilePhoto;
+    }
         // 5. Update Profile Section (CRASH FIX IS HERE)
         // We now check if each element exists before setting textContent
         if (document.getElementById('profileName')) {
@@ -1619,13 +1603,203 @@ function dismissDroid(element, animClass) {
     }
 
     function checkDailyReset() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString('en-CA'); // Fixes timezone bug
         if (userData.lastResetDate !== today) {
             userData.completedTasks = 0;
+            userData.spinKeys = (userData.spinKeys || 0) + 2; // Give 2 daily keys
             userData.lastResetDate = today;
             saveUserData();
         }
     }
+    /* ================= SPIN & WIN LOGIC ================= */
+let isSpinning = false;
+let currentRotation = 0;
+let pendingSpinReward = null;
+
+const spinSegments = [
+    { label: "0.5 BDT", type: "bdt", value: 0.5, start: 0, end: 45 },
+    { label: "0.2 BDT", type: "bdt", value: 0.2, start: 45, end: 90 },
+    { label: "0.8 BDT", type: "bdt", value: 0.8, start: 90, end: 135 },
+    { label: "0.1 BDT", type: "bdt", value: 0.1, start: 135, end: 180 },
+    { label: "0.9 BDT", type: "bdt", value: 0.9, start: 180, end: 225 },
+    { label: "Try Again", type: "empty", value: 0, start: 225, end: 270 },
+    { label: "+1 Key", type: "key", value: 1, start: 270, end: 315 },
+    { label: "0.4 BDT", type: "bdt", value: 0.4, start: 315, end: 360 }
+];
+
+function updateSpinUI() {
+    const keyDisplay = document.getElementById('spin-key-count');
+    const spinBtn = document.getElementById('main-spin-btn');
+    
+    if(keyDisplay) keyDisplay.textContent = userData.spinKeys || 0;
+    
+    if(spinBtn) {
+        if((userData.spinKeys || 0) > 0) {
+            spinBtn.textContent = "SPIN NOW";
+            spinBtn.className = "w-full py-4 rounded-2xl font-extrabold text-lg transition-all shadow-lg text-slate-900 bg-gradient-to-r from-yellow-300 to-yellow-500 hover:scale-[0.98]";
+        } else {
+            spinBtn.textContent = "NEED KEYS TO SPIN";
+            spinBtn.className = "w-full py-4 rounded-2xl font-extrabold text-lg transition-all shadow-inner text-slate-400 bg-slate-800 cursor-not-allowed";
+        }
+    }
+}
+
+async function watchAdForKey() {
+    if (maintenanceMode) return showTopNotification('App under maintenance.');
+    if (isSpinning) return;
+
+    const btn = document.getElementById('get-key-ad-btn');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Ad...';
+    btn.style.pointerEvents = 'none';
+
+    try {
+        // Randomly choose between Adsgram (50%) and LibTL (50%)
+        const useAdsgram = Math.random() > 0.5;
+
+        if (useAdsgram && window.AdsgramController) {
+            await window.AdsgramController.show();
+            grantKeySuccess();
+        } else {
+            // Fallback to LibTL
+            await loadAdSDK();
+            startAdTimer();
+            await show_9683040();
+            if (checkAdCompletion()) {
+                grantKeySuccess();
+            }
+        }
+    } catch (e) {
+        console.error("Ad failed:", e);
+        showTopNotification("Ad unavailable right now. Try again.");
+    } finally {
+        btn.innerHTML = oldHtml;
+        btn.style.pointerEvents = 'auto';
+    }
+}
+
+function grantKeySuccess() {
+    userData.spinKeys = (userData.spinKeys || 0) + 1;
+    saveUserData();
+    updateSpinUI();
+    showTopNotification("🎉 +1 Key Earned!");
+}
+
+function startSpin() {
+    if ((userData.spinKeys || 0) <= 0 || isSpinning) return;
+
+    // Deduct Key
+    userData.spinKeys--;
+    updateSpinUI();
+    
+    isSpinning = true;
+    const btn = document.getElementById('main-spin-btn');
+    btn.textContent = "SPINNING...";
+    btn.className = "w-full py-4 rounded-2xl font-extrabold text-lg text-slate-400 bg-slate-800 cursor-not-allowed";
+
+    const wheel = document.getElementById('spinWheelElement');
+    
+    // Calculate random spin
+    const randomDeg = Math.floor(2500 + Math.random() * 360);
+    currentRotation += randomDeg; 
+    
+    wheel.style.transform = `rotate(-${currentRotation}deg)`;
+
+    // Wait for CSS transition to finish
+    setTimeout(() => {
+        isSpinning = false;
+        calculateSpinResult(currentRotation);
+    }, 4000);
+}
+
+function calculateSpinResult(rotation) {
+    const normalized = rotation % 360;
+    const winner = spinSegments.find(seg => normalized >= seg.start && normalized < seg.end);
+    
+    if (winner) {
+        pendingSpinReward = winner;
+        const modal = document.getElementById('spinResultModal');
+        const title = document.getElementById('spinResultTitle');
+        const msg = document.getElementById('spinResultMsg');
+        const icon = document.getElementById('spinResultIcon');
+
+        if (winner.type === "empty") {
+            title.textContent = "OH NO!";
+            title.className = "text-2xl font-extrabold text-slate-400 mb-2";
+            msg.textContent = "Better luck next time!";
+            icon.className = "fas fa-frown text-4xl text-slate-400";
+            document.getElementById('claimSpinRewardBtn').textContent = "CLOSE";
+        } else if (winner.type === "key") {
+            title.textContent = "LUCKY!";
+            title.className = "text-2xl font-extrabold text-yellow-400 mb-2";
+            msg.textContent = "You found an extra Key!";
+            icon.className = "fas fa-key text-4xl text-yellow-400";
+            document.getElementById('claimSpinRewardBtn').textContent = "AWESOME";
+        } else {
+            title.textContent = "HUGE WIN!";
+            title.className = "text-2xl font-extrabold text-yellow-400 mb-2";
+            msg.textContent = `You won ${winner.value} BDT!`;
+            icon.className = "fas fa-coins text-4xl text-yellow-400";
+            document.getElementById('claimSpinRewardBtn').textContent = "AWESOME";
+        }
+
+        modal.classList.add('show');
+    }
+}
+
+async function claimSpinReward() {
+    const modal = document.getElementById('spinResultModal');
+    const btn = document.getElementById('claimSpinRewardBtn');
+
+    // If it was a loss, just close it
+    if (pendingSpinReward.type === "empty") {
+        modal.classList.remove('show');
+        updateSpinUI();
+        return;
+    }
+
+    // Prepare to show post-spin ad
+    const originalText = btn.textContent;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Claiming...';
+    btn.style.pointerEvents = 'none';
+
+    try {
+        // Require Adsgram ad to claim the reward
+        if (window.AdsgramController) {
+            await window.AdsgramController.show();
+        } else {
+            // Fallback ad if Adsgram fails
+             await loadAdSDK();
+             await show_9683040();
+        }
+
+        // AD FINISHED -> GIVE REWARD
+        if (pendingSpinReward.type === "key") {
+            userData.spinKeys = (userData.spinKeys || 0) + 1;
+        } else if (pendingSpinReward.type === "bdt") {
+            userData.balance += pendingSpinReward.value;
+            userData.totalEarnings += pendingSpinReward.value;
+            
+            if(typeof HistoryManager !== 'undefined') {
+                HistoryManager.addRecord('task', pendingSpinReward.value, 'Lucky Wheel Win');
+            }
+        }
+
+        await saveUserData();
+        updateUI(); // Updates main header balance
+        showTopNotification(`Successfully claimed ${pendingSpinReward.label}!`);
+
+    } catch (e) {
+        console.error("Post-spin ad failed", e);
+        showTopNotification("Failed to verify reward. Please try again.");
+    } finally {
+        modal.classList.remove('show');
+        btn.textContent = originalText;
+        btn.style.pointerEvents = 'auto';
+        pendingSpinReward = null;
+        updateSpinUI();
+    }
+}
 
     function showSection(targetId) {
     console.log("Navigating to:", targetId);
@@ -1657,7 +1831,9 @@ function dismissDroid(element, animClass) {
         'withdrawal-history-section', 
         'earning-history-section', 
         'payment-methods-section',
-        'notif-history-section' 
+        'notif-history-section',
+        'spin-game-section',    // <--- ADD THIS
+        'games-section'         // <--- ADD THIS TOO (Looks better without header)
     ];
     
     if (hideHeaderSections.includes(targetId)) {
@@ -1693,6 +1869,7 @@ function dismissDroid(element, animClass) {
     if (targetId === 'profile-section') {
         if(typeof updateUI === 'function') updateUI();
     }
+    if (targetId === 'games-section') { setTimeout(() => { renderBannerAds(targetId); }, 50); }
     if (targetId === 'earn-section' || targetId === 'profile-section' || targetId === 'home-section') {
         // Small delay ensures the tab is fully visible before asking Adsterra to load
         setTimeout(() => {
@@ -2697,75 +2874,77 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Render Function for UI
-    function renderEarningHistory(filterType = 'all') {
-        const container = document.getElementById('earningHistoryContainer');
-        const totalDisplay = document.getElementById('history-total-72h');
-        
-        // 1. Get Data
-        let data = HistoryManager.getHistory();
-        
-        // 2. Update Total
-        if(totalDisplay) {
-            const total = HistoryManager.getRecentTotal();
-            totalDisplay.textContent = `+ BDT ${total.toFixed(2)}`;
-        }
-        
-        // 3. Apply Filter
-        if (filterType !== 'all') {
-            data = data.filter(item => item.type === filterType);
-        }
-        
-        // 4. Group by Date
-        container.innerHTML = '';
-        
-        if (data.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-10 opacity-50">
-                    <i class="fas fa-history text-4xl mb-3 text-gray-300"></i>
-                    <p class="text-gray-500">No records found</p>
-                </div>`;
-            return;
-        }
-
-        let currentDate = '';
-        
-        data.forEach(item => {
-            const dateObj = new Date(item.timestamp);
-            // Check if date header needed
-            const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const isToday = new Date().toDateString() === dateObj.toDateString();
-            const displayDate = isToday ? 'Today' : dateStr;
-            
-            if (displayDate !== currentDate) {
-                currentDate = displayDate;
-                container.innerHTML += `
-                    <div class="date-header">
-                        <span>${displayDate}</span>
-                        <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">${dateStr}</span>
-                    </div>`;
-            }
-
-            // Render Item
-            const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            const iconClass = item.type === 'ad' ? 'icon-ad' : 'icon-task';
-            const iconHTML = item.type === 'ad' ? '<i class="fas fa-play"></i>' : '<i class="fas fa-star"></i>';
-            
-            container.innerHTML += `
-                <div class="history-item">
-                    <div class="item-icon ${iconClass}">
-                        ${iconHTML}
-                    </div>
-                    <div class="item-meta">
-                        <p class="item-title">${item.title}</p>
-                        <p class="item-time">${timeStr}</p>
-                    </div>
-                    <div class="item-amount">
-                        <p class="amt-val">+${item.amount.toFixed(2)}</p>
-                        <p class="amt-status">Added</p>
-                    </div>
-                </div>`;
-        });
+    // Render Function for UI (Optimized for smooth scrolling)
+function renderEarningHistory(filterType = 'all') {
+    const container = document.getElementById('earningHistoryContainer');
+    const totalDisplay = document.getElementById('history-total-72h');
+    
+    // 1. Get Data
+    let data = HistoryManager.getHistory();
+    
+    // 2. Update Total
+    if (totalDisplay) {
+        const total = HistoryManager.getRecentTotal();
+        totalDisplay.textContent = `+ BDT ${total.toFixed(2)}`;
     }
+    
+    // 3. Apply Filter
+    if (filterType !== 'all') {
+        data = data.filter(item => item.type === filterType);
+    }
+    
+    // 4. Group by Date
+    if (data.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-10 opacity-50">
+                <i class="fas fa-history text-4xl mb-3 text-gray-300"></i>
+                <p class="text-gray-500">No records found</p>
+            </div>`;
+        return;
+    }
+
+    let currentDate = '';
+    let htmlString = ''; // Build the HTML in memory first
+    
+    data.forEach(item => {
+        const dateObj = new Date(item.timestamp);
+        const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const isToday = new Date().toDateString() === dateObj.toDateString();
+        const displayDate = isToday ? 'Today' : dateStr;
+        
+        if (displayDate !== currentDate) {
+            currentDate = displayDate;
+            htmlString += `
+                <div class="date-header">
+                    <span>${displayDate}</span>
+                    <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">${dateStr}</span>
+                </div>`;
+        }
+
+        // Render Item
+        const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        const iconClass = item.type === 'ad' ? 'icon-ad' : 'icon-task';
+        const iconHTML = item.type === 'ad' ? '<i class="fas fa-play"></i>' : '<i class="fas fa-star"></i>';
+        
+        htmlString += `
+            <div class="history-item">
+                <div class="item-icon ${iconClass}">
+                    ${iconHTML}
+                </div>
+                <div class="item-meta">
+                    <p class="item-title">${item.title}</p>
+                    <p class="item-time">${timeStr}</p>
+                </div>
+                <div class="item-amount">
+                    <p class="amt-val">+${item.amount.toFixed(2)}</p>
+                    <p class="amt-status">Added</p>
+                </div>
+            </div>`;
+    });
+
+    // Inject the DOM exactly ONE time to prevent UI lag
+    container.innerHTML = htmlString;
+}
     
     // Tab Switching Logic
     window.filterEarningHistory = function(type, btnElement) {
