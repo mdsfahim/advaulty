@@ -339,7 +339,10 @@
         injectPassiveAds();
         
         renderExtraAds();
-        renderBannerAds();
+        // Determine which section is currently active on load
+        const activeSectionEl = document.querySelector('.section.active, .section-fullscreen.active');
+        const currentSectionId = activeSectionEl ? activeSectionEl.id : 'home-section';
+        renderBannerAds(currentSectionId);
         updateUI();
     }
     
@@ -789,79 +792,93 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
     // --- Dynamic Extra Ads Rendering ---
     // --- Dynamic Extra Ads Rendering (Updated Style) ---
     
-    // --- Updated Banner & Native Ad Rendering ---
-function renderBannerAds(activeSection) {
-    const ads = adminSettings.adServices || [];
+    function renderBannerAds(activeSection) {
+    // 1. Grab the exact object names your Admin Panel uses
+    const bannerAds = adminSettings.bannerAds || {};
+    const nativeAd = adminSettings.nativeAd || {};
 
-    // Helper function to safely inject ads if the container is empty
-    const injectAd = (containerId, expectedType, expectedPlacement) => {
-        const container = document.getElementById(containerId);
-        if (!container || container.innerHTML.trim() !== "") return; // Skip if missing or already loaded
+    // 2. Map the containers
+    const homeCont = document.getElementById('homeBannerContainer');
+    const earnCont = document.getElementById('earnBannerContainer');
+    const gameCont = document.getElementById('gameBannerContainer');
+    const profileCont = document.getElementById('profileBannerContainer');
+    const nativeCont = document.getElementById('profileNativeBannerContainer');
 
-        // Find the specific ad that matches the rules
-        const ad = ads.find(a => 
-            a.active && 
-            a.type === expectedType && 
-            (expectedPlacement ? a.placement === expectedPlacement : true)
-        );
+    // 3. Helper for the 4 main banners (Home, Earn, Game, Profile)
+    const handleMainBanner = (container, codeString, isSectionActive) => {
+        if (!container) return;
+        
+        // If the Master Banner toggle is OFF in the admin panel, or the box was empty, clear it
+        if (!bannerAds.active || !codeString || codeString.trim() === "") {
+            container.innerHTML = "";
+            return;
+        }
 
-        if (ad && ad.code) {
-            console.log(`Loading ${expectedType} ad for ${containerId}...`);
-            insertAdHTML(container, ad.code);
+        // SAFE LOAD: Inject the script if they are on the tab and it hasn't loaded yet
+        if (isSectionActive && container.innerHTML.trim() === "") {
+            insertAdHTML(container, codeString);
         }
     };
 
-    // Route the injection based on the active tab
-    if (activeSection === 'home-section') {
-        injectAd('homeBannerContainer', 'banner', 'home');
-    } 
-    else if (activeSection === 'earn-section') {
-        injectAd('earnBannerContainer', 'banner', 'earn');
-    } 
-    else if (activeSection === 'games-section') {
-        // NOTE: Make sure to add this section trigger in your showSection() function!
-        injectAd('gameBannerContainer', 'banner', 'game');
-    } 
-    else if (activeSection === 'profile-section') {
-        injectAd('profileBannerContainer', 'banner', 'profile');
-        injectAd('profileNativeContainer', 'native', null); // Native doesn't need placement check
-    }
-}
+    // 4. Helper specifically for the Native Banner (which has a slightly different format)
+    const handleNativeBanner = (container, nativeObj, isSectionActive) => {
+        if (!container) return;
+        
+        if (!nativeObj || !nativeObj.active || !nativeObj.code || nativeObj.code.trim() === "") {
+            container.innerHTML = "";
+            return;
+        }
 
-// --- Updated Smart Link Rendering ---
-function renderExtraAds() {
-    const container = document.getElementById('extraTasksContainer');
-    const noAdsMsg = document.getElementById('noAdsMsg');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    
-    // STRICT FILTER: Only show 'smartlink' types in the Extra Tasks box
-    const validTasks = adminSettings.adServices?.filter(s => s.active && s.type === 'smartlink') || [];
-    
-    if (validTasks.length === 0) {
-        if (noAdsMsg) noAdsMsg.classList.remove('hidden');
-        return;
-    } else {
-        if (noAdsMsg) noAdsMsg.classList.add('hidden');
-    }
+        if (isSectionActive && container.innerHTML.trim() === "") {
+            insertAdHTML(container, nativeObj.code);
+        }
+    };
 
-    validTasks.forEach(service => {
-        const card = document.createElement('div');
-        card.className = "extra-earn-card";
-        card.innerHTML = `
-            <i class="fas fa-gift extra-gift-icon"></i>
-            <div class="relative z-10">
-                <h2 class="text-xl font-bold mb-0.5">${service.name || 'Bonus Task'}</h2>
-                <p class="text-xs opacity-90 mb-2">Reward: +${service.reward || 0.10} BDT</p>
-                <button class="extra-btn" onclick="startSpecificAd('${service.id}')">
-                    <i class="fas fa-box-open mr-1"></i> Open & Earn
-                </button>
-            </div>
-        `;
-        container.appendChild(card);
-    });
+    // 5. Fire the injections based on the exact keys from your Admin Panel!
+    handleMainBanner(homeCont, bannerAds.home, activeSection === 'home-section');
+    handleMainBanner(earnCont, bannerAds.earn, activeSection === 'earn-section');
+    handleMainBanner(gameCont, bannerAds.game, activeSection === 'games-section');
+    handleMainBanner(profileCont, bannerAds.profile, activeSection === 'profile-section');
+    
+    // Native ad processes separately
+    handleNativeBanner(nativeCont, nativeAd, activeSection === 'profile-section');
 }
+    // --- Dynamic Extra Ads Rendering (Updated) ---
+    function renderExtraAds() {
+        const container = document.getElementById('extraTasksContainer');
+        const noAdsMsg = document.getElementById('noAdsMsg');
+        
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        // FIX: Filter out items that are 'banner' type
+        // We only want 'smartlink', 'iframe', or undefined types to show as Gift Boxes
+        const validTasks = adminSettings.adServices?.filter(s => s.active && s.type !== 'banner') || [];
+        
+        if (validTasks.length === 0) {
+            if (noAdsMsg) noAdsMsg.classList.remove('hidden');
+            return;
+        } else {
+            if (noAdsMsg) noAdsMsg.classList.add('hidden');
+        }
+
+        validTasks.forEach(service => {
+            const card = document.createElement('div');
+            card.className = "extra-earn-card";
+            card.innerHTML = `
+                <i class="fas fa-gift extra-gift-icon"></i>
+                <div class="relative z-10">
+                    <h2 class="text-xl font-bold mb-0.5">${service.name || 'Bonus Task'}</h2>
+                    <p class="text-xs opacity-90 mb-2">Reward: +${service.reward || 0.10} BDT</p>
+                    <button class="extra-btn" onclick="startSpecificAd('${service.id}')">
+                        <i class="fas fa-box-open mr-1"></i> Open & Earn
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
    // --- Dynamic Ad Popup with Timer & Smartlink Verification ---
     // --- Dynamic Ad Popup with New UI ---
     window.startSpecificAd = function(serviceId) {
@@ -1091,19 +1108,33 @@ function renderExtraAds() {
     function insertAdHTML(container, htmlCode) {
     if (!container || !htmlCode) return;
     
+    // Clear previous ad content
+    container.innerHTML = '';
+    
     const wrapper = document.createElement('div');
     wrapper.className = 'ad-wrapper';
-    
-    // REMOVED fixed height styles
-    // The CSS class 'ad-wrapper' now handles the auto-sizing
-    
     container.appendChild(wrapper);
 
+    // Parse the HTML string
     const range = document.createRange();
     range.selectNode(wrapper);
     const fragment = range.createContextualFragment(htmlCode);
-    
     wrapper.appendChild(fragment);
+
+    // CRITICAL FIX: Force the browser to execute injected <script> tags
+    // Adsterra/Monetag will not work in an SPA without this step.
+    const scripts = wrapper.querySelectorAll('script');
+    scripts.forEach(oldScript => {
+        const newScript = document.createElement('script');
+        // Copy all attributes (src, type, etc.)
+        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        // Copy inline script content
+        if (oldScript.innerHTML) {
+            newScript.innerHTML = oldScript.innerHTML;
+        }
+        // Replace the old dead script with the new live one
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
 }
 
 
@@ -1869,12 +1900,11 @@ async function claimSpinReward() {
     if (targetId === 'profile-section') {
         if(typeof updateUI === 'function') updateUI();
     }
-    if (targetId === 'games-section') { setTimeout(() => { renderBannerAds(targetId); }, 50); }
-    if (targetId === 'earn-section' || targetId === 'profile-section' || targetId === 'home-section') {
+    if (targetId === 'earn-section' || targetId === 'profile-section' || targetId === 'home-section' || targetId === 'games-section') {
         // Small delay ensures the tab is fully visible before asking Adsterra to load
         setTimeout(() => {
             if(typeof renderBannerAds === 'function') {
-                renderBannerAds(targetId); // Pass the current tab ID
+                renderBannerAds(targetId); 
             }
         }, 50);
     }
@@ -2874,77 +2904,75 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Render Function for UI
-    // Render Function for UI (Optimized for smooth scrolling)
-function renderEarningHistory(filterType = 'all') {
-    const container = document.getElementById('earningHistoryContainer');
-    const totalDisplay = document.getElementById('history-total-72h');
-    
-    // 1. Get Data
-    let data = HistoryManager.getHistory();
-    
-    // 2. Update Total
-    if (totalDisplay) {
-        const total = HistoryManager.getRecentTotal();
-        totalDisplay.textContent = `+ BDT ${total.toFixed(2)}`;
-    }
-    
-    // 3. Apply Filter
-    if (filterType !== 'all') {
-        data = data.filter(item => item.type === filterType);
-    }
-    
-    // 4. Group by Date
-    if (data.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-10 opacity-50">
-                <i class="fas fa-history text-4xl mb-3 text-gray-300"></i>
-                <p class="text-gray-500">No records found</p>
-            </div>`;
-        return;
-    }
-
-    let currentDate = '';
-    let htmlString = ''; // Build the HTML in memory first
-    
-    data.forEach(item => {
-        const dateObj = new Date(item.timestamp);
-        const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const isToday = new Date().toDateString() === dateObj.toDateString();
-        const displayDate = isToday ? 'Today' : dateStr;
+    function renderEarningHistory(filterType = 'all') {
+        const container = document.getElementById('earningHistoryContainer');
+        const totalDisplay = document.getElementById('history-total-72h');
         
-        if (displayDate !== currentDate) {
-            currentDate = displayDate;
-            htmlString += `
-                <div class="date-header">
-                    <span>${displayDate}</span>
-                    <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">${dateStr}</span>
+        // 1. Get Data
+        let data = HistoryManager.getHistory();
+        
+        // 2. Update Total
+        if(totalDisplay) {
+            const total = HistoryManager.getRecentTotal();
+            totalDisplay.textContent = `+ BDT ${total.toFixed(2)}`;
+        }
+        
+        // 3. Apply Filter
+        if (filterType !== 'all') {
+            data = data.filter(item => item.type === filterType);
+        }
+        
+        // 4. Group by Date
+        container.innerHTML = '';
+        
+        if (data.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-10 opacity-50">
+                    <i class="fas fa-history text-4xl mb-3 text-gray-300"></i>
+                    <p class="text-gray-500">No records found</p>
                 </div>`;
+            return;
         }
 
-        // Render Item
-        const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-        const iconClass = item.type === 'ad' ? 'icon-ad' : 'icon-task';
-        const iconHTML = item.type === 'ad' ? '<i class="fas fa-play"></i>' : '<i class="fas fa-star"></i>';
+        let currentDate = '';
         
-        htmlString += `
-            <div class="history-item">
-                <div class="item-icon ${iconClass}">
-                    ${iconHTML}
-                </div>
-                <div class="item-meta">
-                    <p class="item-title">${item.title}</p>
-                    <p class="item-time">${timeStr}</p>
-                </div>
-                <div class="item-amount">
-                    <p class="amt-val">+${item.amount.toFixed(2)}</p>
-                    <p class="amt-status">Added</p>
-                </div>
-            </div>`;
-    });
+        data.forEach(item => {
+            const dateObj = new Date(item.timestamp);
+            // Check if date header needed
+            const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const isToday = new Date().toDateString() === dateObj.toDateString();
+            const displayDate = isToday ? 'Today' : dateStr;
+            
+            if (displayDate !== currentDate) {
+                currentDate = displayDate;
+                container.innerHTML += `
+                    <div class="date-header">
+                        <span>${displayDate}</span>
+                        <span class="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-400">${dateStr}</span>
+                    </div>`;
+            }
 
-    // Inject the DOM exactly ONE time to prevent UI lag
-    container.innerHTML = htmlString;
-}
+            // Render Item
+            const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            const iconClass = item.type === 'ad' ? 'icon-ad' : 'icon-task';
+            const iconHTML = item.type === 'ad' ? '<i class="fas fa-play"></i>' : '<i class="fas fa-star"></i>';
+            
+            container.innerHTML += `
+                <div class="history-item">
+                    <div class="item-icon ${iconClass}">
+                        ${iconHTML}
+                    </div>
+                    <div class="item-meta">
+                        <p class="item-title">${item.title}</p>
+                        <p class="item-time">${timeStr}</p>
+                    </div>
+                    <div class="item-amount">
+                        <p class="amt-val">+${item.amount.toFixed(2)}</p>
+                        <p class="amt-status">Added</p>
+                    </div>
+                </div>`;
+        });
+    }
     
     // Tab Switching Logic
     window.filterEarningHistory = function(type, btnElement) {

@@ -103,7 +103,7 @@
   </div>
 
   <!-- Telegram Warning Popup -->
-<div id="telegramWarningPopup" style="display: none;">
+ <div id="telegramWarningPopup" style="display: none;">
     <div class="security-pattern"></div>
 
     <div class="warning-card">
@@ -121,20 +121,19 @@
             AdVault is designed to run exclusively within the Telegram app to ensure account security and proper reward tracking.
         </p>
 
-        <a href="https://t.me/AdVault_3bot" class="open-bot-btn">
+        <a href="https://t.me/AdVault_2bot" class="open-bot-btn">
             <i class="fab fa-telegram-plane text-xl"></i>
             <span>Open Telegram Bot</span>
         </a>
 
         <div class="manual-link">
-            <a href="#" onclick="location.reload(); return false;">
-                <i class="fas fa-sync-alt mr-1"></i> Refresh Page
+            <a href="#" onclick="document.getElementById('telegramWarningPopup').style.display='none'; return false;">
+                Continue in Browser (Limited)
             </a>
         </div>
         
     </div>
   </div>
-
   <!-- Instructions Popup -->
 <div id="instructionsPopup" class="notif-overlay" onclick="hideInstructionsPopup()" style="display: none;">
   <div class="notif-panel" onclick="event.stopPropagation()">
@@ -351,7 +350,7 @@
                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
               </span>
-              <span class="text-[10px] font-medium text-slate-300">Live Updates (beta)</span>
+              <span class="text-[10px] font-medium text-slate-300">Live Updates</span>
            </div>
            <span class="text-[10px] font-bold bg-green-500/20 text-green-100 px-2 py-1 rounded border border-green-500/30">
              BDT
@@ -389,7 +388,7 @@
         </button>
       </div>
 
-      <h3 class="text-sm font-bold text-slate-800 mb-3 ml-1">Today's Overview (beta)</h3>
+      <h3 class="text-sm font-bold text-slate-800 mb-3 ml-1">Today's Overview</h3>
       
       <div class="stats-grid">
         <div class="stat-card">
@@ -601,7 +600,7 @@
           </div>
           No bonus tasks available right now.
       </div>
-<div id="earnBannerContainer" class="banner-zone-stack"></div>
+<div id="earnBannerContainer" class="banner-zone"></div>
       <div class="invite-banner">
         <i class="fas fa-gift invite-deco"></i>
         <h3 class="text-xl font-bold mb-1">Invite Friends</h3>
@@ -637,7 +636,7 @@
 
       <div class="game-banner-card mb-6">
         <div class="relative z-10">
-            <h3 class="text-xl font-bold text-white mb-1">Game Zone (beta)</h3>
+            <h3 class="text-xl font-bold text-white mb-1">Game Zone</h3>
             <p class="text-orange-100 text-sm max-w-[80%] leading-relaxed">Turn your spare time into real cash. Exciting games dropping soon!</p>
         </div>
         <i class="fas fa-dice game-banner-icon"></i>
@@ -688,7 +687,7 @@
         </div>
 
       </div>
-      <div id="gameBannerContainer" class="banner-zone mt-4"></div>
+      <div id="gameBannerContainer" class="banner-zone"></div>
       <div class="h-12"></div> 
     </div>
     <!-- earnings history-->
@@ -1032,7 +1031,7 @@
     </div>
   </div>
 </div>
-<div id="profileBannerContainer" class="banner-zone mb-4"></div>
+<div id="profileBannerContainer" class="banner-zone"></div>
 <div class="menu-section">
   <div class="menu-label">Help & Legal</div>
   <div class="menu-group">
@@ -1069,10 +1068,11 @@
     </div>
 
   </div>
-  <div id="profileNativeContainer" class="banner-zone mt-4"></div>
+ 
 </div>
+<div id="profileNativeBannerContainer" class="banner-zone"></div>
           <div class="text-center mt-6">
-            <p class="text-[10px] text-slate-300 font-medium">AdVault Secured • 2026</p>
+            <p class="text-[10px] text-slate-300 font-medium">AdVault Secured • 2025</p>
           </div>
     <!-- Original Edit Payment Information Modal -->
     <div id="editModal" style="display: none;">
