@@ -1292,144 +1292,173 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
 /**
  * AdVault Intelligent Notification Engine with Local History
  */
+/**
+ * AdVault IOS-Style Stacking Notification Engine
+ * Automatically maps security, earnings, and system alerts with swipe physics.
+ */
+
+const activeNotifications = []; 
+const GAP_BETWEEN_NOTIFS = 10; 
+const TOP_MARGIN = 16;         
+
 function showTopNotification(message, duration = 4000) {
-    const container = document.getElementById('notification-container');
-    if (!container) return;
-
-    const el = document.createElement('div');
-    el.className = 'droid-notify';
-
     let config = {
-        title: "AdVault",
-        icon: '<i class="fas fa-bell"></i>',
-        bgColor: "icon-bg-info",
-        type: "info", // for history filtering
+        title: "System Update",
+        icon: '<i class="fas fa-bell text-blue-500" style="margin-right: 6px;"></i>',
+        type: "info",
         msg: message
     };
 
     const lowerMsg = message.toLowerCase();
 
+    // Intelligent Text Mapping
     if (lowerMsg.includes('invalid') || lowerMsg.includes('fail') || lowerMsg.includes('error') || lowerMsg.includes('penalty') || lowerMsg.includes('link your')) {
         config.title = "Security Alert";
-        config.icon = '<i class="fas fa-exclamation-circle"></i>';
-        config.bgColor = "icon-bg-error";
+        config.icon = '<i class="fas fa-exclamation-circle text-red-500" style="margin-right: 6px;"></i>';
         config.type = "security";
-    } else if (lowerMsg.includes('earn') || lowerMsg.includes('+')) {
+    } else if (lowerMsg.includes('earn') || lowerMsg.includes('+') || lowerMsg.includes('success') || lowerMsg.includes('submitted')) {
         config.title = "Payment Received";
-        config.icon = '<i class="fas fa-coins"></i>';
-        config.bgColor = "icon-bg-earn";
+        config.icon = '<i class="fas fa-check-circle text-green-500" style="margin-right: 6px;"></i>';
         config.type = "earning";
         config.msg = message.replace(/(\+?\d+\.\d+\s?BDT)/g, '<span class="money-green">$1</span>');
-    } else if (lowerMsg.includes('success') || lowerMsg.includes('submitted')) {
-        config.title = "Action Successful";
-        config.icon = '<i class="fas fa-check-circle"></i>';
-        config.bgColor = "icon-bg-earn";
-        config.type = "success";
     }
 
-    // --- SAVE TO LOCAL STORAGE ---
-    saveNotificationToHistory(config.title, message, config.type);
+    // Save to local history
+    if(typeof saveNotificationToHistory === 'function') {
+        saveNotificationToHistory(config.title, message, config.type);
+    }
 
-    el.innerHTML = `
-        <div class="notify-header">
-            <div class="header-left">
-                <div class="app-icon-small">
-                    <img src="https://worldnews24x7.infy.uk/image/advault3.png" class="w-full h-full object-cover">
-                </div>
-                <span class="app-name">AdVault</span>
-                <span class="text-[10px] text-slate-300">•</span>
-                <span class="notify-time">now</span>
+    // 1. Create Element
+    const notifEl = document.createElement('div');
+    notifEl.classList.add('notification');
+    notifEl.innerHTML = `
+        <img src="https://worldnews24x7.infy.uk/image/advault3.png" alt="AdVault" class="notif-avatar">
+        <div class="notif-text-wrapper">
+            <div class="notif-header">
+                <span class="notif-app-name">AdVault Alert</span>
+                <span class="notif-time">now</span>
             </div>
-        </div>
-        <div class="notify-content">
-            <div class="text-area">
-                <h3 class="notify-title">${config.title}</h3>
-                <p class="notify-body">${config.msg}</p>
-            </div>
-            <div class="large-icon-box ${config.bgColor}">
-                ${config.icon}
-            </div>
+            <div class="notif-title">${config.icon} ${config.title}</div>
+            <div class="notif-desc">${config.msg}</div>
         </div>
     `;
-
-    container.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('show'));
-    attachDroidSwipe(el);
-
-    const timer = setTimeout(() => {
-        if(document.body.contains(el)) dismissDroid(el, 'swipe-up');
-    }, duration);
-    el.dataset.timerId = timer;
-}
-
-/**
- * Local Storage History Manager
- */
-function saveNotificationToHistory(title, message, type) {
-    const MAX_HISTORY = 30; // Keep only last 30
-    let history = JSON.parse(localStorage.getItem('advault_notif_history') || '[]');
     
-    const newEntry = {
-        id: Date.now(),
-        title: title,
-        message: message,
-        type: type,
-        time: new Date().toISOString()
+    // Inject directly to body
+    document.body.appendChild(notifEl);
+
+    // 2. Create Tracker
+    const notifObj = {
+        el: notifEl,
+        isExpanded: false,
+        isDismissing: false,
+        timer: null
     };
 
-    history.unshift(newEntry); // Add to start
-    if (history.length > MAX_HISTORY) history.pop(); // Remove oldest
-    
-    localStorage.setItem('advault_notif_history', JSON.stringify(history));
+    activeNotifications.unshift(notifObj);
+
+    // 3. Drop in
+    requestAnimationFrame(() => layoutNotifications());
+
+    // 4. Expand
+    setTimeout(() => {
+        notifObj.isExpanded = true;
+        notifEl.classList.add('expanded');
+        layoutNotifications(); 
+    }, 300);
+
+    // 5. Setup Auto-remove & Gestures
+    notifObj.timer = setTimeout(() => dismissNotification(notifObj, 'auto'), duration);
+    setupGestures(notifObj);
 }
-// Gesture Handling Function
-function attachDroidSwipe(element) {
+
+function layoutNotifications() {
+    let currentTopPosition = TOP_MARGIN;
+
+    activeNotifications.forEach((notifObj) => {
+        if (notifObj.isDismissing) return; 
+
+        notifObj.el.style.top = `${currentTopPosition}px`;
+        const currentHeight = notifObj.isExpanded ? 76 : 56;
+        currentTopPosition += currentHeight + GAP_BETWEEN_NOTIFS;
+    });
+}
+
+function dismissNotification(notifObj, method, dragX = 0, dragY = 0) {
+    if (notifObj.isDismissing) return;
+    notifObj.isDismissing = true;
+    clearTimeout(notifObj.timer); 
+
+    const index = activeNotifications.indexOf(notifObj);
+    if (index > -1) activeNotifications.splice(index, 1);
+
+    layoutNotifications();
+
+    if (method === 'auto' || method === 'up') {
+        notifObj.el.classList.remove('expanded');
+        setTimeout(() => {
+            notifObj.el.style.top = '-100px'; 
+            setTimeout(() => notifObj.el.remove(), 500);
+        }, 400);
+    } 
+    else if (method === 'left') {
+        notifObj.el.style.transform = `translateX(calc(-50% - 150vw)) translateY(${dragY}px)`;
+        notifObj.el.style.opacity = '0';
+        setTimeout(() => notifObj.el.remove(), 400);
+    } 
+    else if (method === 'right') {
+        notifObj.el.style.transform = `translateX(calc(-50% + 150vw)) translateY(${dragY}px)`;
+        notifObj.el.style.opacity = '0';
+        setTimeout(() => notifObj.el.remove(), 400);
+    }
+}
+
+function setupGestures(notifObj) {
+    const el = notifObj.el;
     let startX = 0, startY = 0, currentX = 0, currentY = 0, isDragging = false;
-    const threshold = 80;
 
     const onStart = (e) => {
-        clearTimeout(element.dataset.timerId);
         isDragging = true;
         startX = (e.type === 'touchstart') ? e.touches[0].clientX : e.clientX;
         startY = (e.type === 'touchstart') ? e.touches[0].clientY : e.clientY;
-        element.style.transition = 'none';
+        el.classList.add('dragging');
+        clearTimeout(notifObj.timer); 
     };
 
     const onMove = (e) => {
         if (!isDragging) return;
-        const x = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX;
-        const y = (e.type === 'touchmove') ? e.touches[0].clientY : e.clientY;
-        currentX = x - startX;
-        currentY = y - startY;
-        element.style.transform = `translate(${currentX}px, ${currentY}px)`;
-        const dist = Math.sqrt(currentX*currentX + currentY*currentY);
-        element.style.opacity = Math.max(0.5, 1 - (dist / 300));
+        currentX = ((e.type === 'touchmove') ? e.touches[0].clientX : e.clientX) - startX;
+        currentY = ((e.type === 'touchmove') ? e.touches[0].clientY : e.clientY) - startY;
+
+        let dragY = currentY > 0 ? currentY * 0.2 : currentY; 
+        el.style.transform = `translateX(calc(-50% + ${currentX}px)) translateY(${dragY}px)`;
+        el.style.opacity = 1 - (Math.max(Math.abs(currentX), Math.abs(dragY)) / 300);
     };
 
     const onEnd = () => {
         if (!isDragging) return;
         isDragging = false;
-        element.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease';
-        if (currentX > threshold) dismissDroid(element, 'swipe-right');
-        else if (currentX < -threshold) dismissDroid(element, 'swipe-left');
-        else if (currentY < -40) dismissDroid(element, 'swipe-up');
+        el.classList.remove('dragging');
+
+        const swipeThreshold = 50;
+
+        if (currentX < -swipeThreshold) dismissNotification(notifObj, 'left', currentX, currentY); 
+        else if (currentX > swipeThreshold) dismissNotification(notifObj, 'right', currentX, currentY);  
+        else if (currentY < -swipeThreshold) dismissNotification(notifObj, 'up', currentX, currentY); 
         else {
-            element.style.transform = 'translate(0, 0)';
-            element.style.opacity = '1';
+            el.style.transform = 'translateX(-50%) translateY(0)';
+            el.style.opacity = '1';
+            notifObj.timer = setTimeout(() => dismissNotification(notifObj, 'auto'), 3000);
         }
     };
 
-    element.addEventListener('touchstart', onStart);
-    element.addEventListener('touchmove', onMove);
-    element.addEventListener('touchend', onEnd);
-    element.addEventListener('mousedown', onStart);
+    el.addEventListener('touchstart', onStart, {passive: true});
+    el.addEventListener('touchmove', onMove, {passive: true});
+    el.addEventListener('touchend', onEnd);
+    
+    // Desktop fallback just in case testing on PC
+    el.addEventListener('mousedown', onStart);
     window.addEventListener('mousemove', (e) => isDragging && onMove(e));
     window.addEventListener('mouseup', () => isDragging && onEnd());
-}
-
-function dismissDroid(element, animClass) {
-    element.classList.add(animClass);
-    setTimeout(() => { if(element.parentNode) element.parentNode.removeChild(element); }, 300);
 }
 
     /* ================= SUCCESS POPUP LOGIC ================= */
@@ -1995,7 +2024,61 @@ async function claimSpinReward() {
         
         flagElement.textContent = flagMap[country] || '';
     }
+// ================= MULTI-STATE DYNAMIC ALERTS (ERRORS & WARNINGS) =================
 
+const toastIconMap = {
+    'success': 'check_circle',
+    'error': 'error',
+    'warning': 'warning',
+    'info': 'info'
+};
+
+function triggerToast(type, title, message) {
+    const container = document.getElementById('toast-container');
+    if (!container) return; // Failsafe
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const iconName = toastIconMap[type] || 'notifications';
+
+    toast.innerHTML = `
+        <div class="toast-icon-wrapper">
+            <span class="material-symbols-outlined">${iconName}</span>
+        </div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-desc">${message}</div>
+        </div>
+    `;
+
+    container.prepend(toast);
+
+    // Play entry animation
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    // Auto-Remove Timer (4 seconds)
+    const removeTimer = setTimeout(() => dismissToast(toast), 4000);
+
+    // Dismiss on click
+    toast.addEventListener('click', () => {
+        clearTimeout(removeTimer);
+        dismissToast(toast);
+    });
+}
+
+function dismissToast(toast) {
+    toast.classList.remove('show');
+    toast.style.transform = 'translateY(-20px) scale(0.9)';
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 400);
+}
     function applyPenalty() {
         const penaltyEnabled = adminSettings.enablePenalty !== false;
         if (!penaltyEnabled) return;
@@ -2090,7 +2173,7 @@ async function claimSpinReward() {
         const requiredDuration = (adminSettings.adDuration || 15) * 1000;
         if (elapsed < requiredDuration) {
             applyPenalty();
-            showTopNotification(`Warning: Please watch ads for full ${adminSettings.adDuration || 15} seconds to earn rewards`, 5000);
+            triggerToast('error', 'Task Cancelled', `Please watch ads for full ${adminSettings.adDuration || 15} seconds.`);
             return false;
         }
         return true;
@@ -2163,11 +2246,11 @@ function hideInstructionsPopup() {
         const startEarningAd = document.getElementById('startEarningAd');
         const adButtonText = document.getElementById('adButtonText');
         
-        if (startEarningAd) {
+      if (startEarningAd) {
             startEarningAd.addEventListener('click', async () => {
-                if (maintenanceMode) return showTopNotification('App is under maintenance. Please try again later.');
-                if (penaltyActive) return showTopNotification('Please wait until the penalty timer expires to continue');
-                if (userData.completedTasks >= userData.totalTasks) return showTopNotification('All tasks completed for today!');
+                if (maintenanceMode) return triggerToast('warning', 'Maintenance', 'App is under maintenance. Please try again later.');
+                if (penaltyActive) return triggerToast('warning', 'Penalty Active', 'Please wait until the penalty timer expires to continue');
+                if (userData.completedTasks >= userData.totalTasks) return triggerToast('info', 'Daily Limit', 'All tasks completed for today!');
 
                 startEarningAd.disabled = true;
                 adButtonText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading ad...';
@@ -2197,10 +2280,10 @@ function hideInstructionsPopup() {
                         startEarningAd.disabled = false;
                         adButtonText.textContent = 'Start Ad Task';
                         
-                    }).catch((error) => {
+                  }).catch((error) => {
                         // AD FAILED OR CLOSED EARLY
                         console.error("Adsgram error:", error);
-                        showTopNotification('Ad closed early or unavailable.');
+                        triggerToast('error', 'Ad Failed', 'Ad closed early or unavailable.');
                         
                         if (!penaltyActive) {
                             startEarningAd.disabled = false;
@@ -2221,9 +2304,9 @@ function hideInstructionsPopup() {
         const watchVideoLibtlBtn = document.getElementById('watchVideoLibtlBtn');
         if (watchVideoLibtlBtn) {
             watchVideoLibtlBtn.addEventListener('click', async () => {
-                if (maintenanceMode) return showTopNotification('App is under maintenance.');
-                if (penaltyActive) return showTopNotification('Please wait for penalty to end.');
-
+                if (maintenanceMode) return triggerToast('warning', 'Maintenance', 'App is under maintenance.');
+                if (penaltyActive) return triggerToast('warning', 'Penalty', 'Please wait for penalty to end.');
+                
                 // UI Loading State (Fades the button out slightly so user knows it clicked)
                 watchVideoLibtlBtn.style.opacity = '0.5';
                 watchVideoLibtlBtn.style.pointerEvents = 'none';
@@ -2253,9 +2336,9 @@ function hideInstructionsPopup() {
                     updateUI();
                     showTopNotification(`Bonus Earned: ${earnings.toFixed(2)} BDT!`);
                     
-                } catch (error) {
+              } catch (error) {
                     console.error("Libtl error:", error);
-                    showTopNotification('Ad failed to load: ' + error.message);
+                    triggerToast('error', 'Ad Failed', 'Ad failed to load: ' + error.message);
                 } finally {
                     // Restore Button UI State
                     watchVideoLibtlBtn.style.opacity = '1';
@@ -3139,7 +3222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function submitWithdrawal() {
     // 1. Validation Checks
     if (!selectedWithdrawMethod) {
-        showTopNotification("Please select a payment method");
+        triggerToast('warning', 'Method Required', 'Please select a payment method');
         return;
     }
 
@@ -3149,18 +3232,18 @@ async function submitWithdrawal() {
 
     // Check Amount
     if (isNaN(amount) || amount <= 0) {
-        showTopNotification("Please enter a valid amount");
+        triggerToast('error', 'Invalid Amount', 'Please enter a valid amount');
         return;
     }
 
     if (amount < minWithdraw) {
-        showTopNotification(`Minimum withdrawal is BDT ${minWithdraw}`);
+        triggerToast('warning', 'Amount Too Low', `Minimum withdrawal is BDT ${minWithdraw}`);
         return;
     }
 
     // Check Balance
     if (amount > userData.balance) {
-        showTopNotification("Insufficient balance for this withdrawal");
+        triggerToast('error', 'Insufficient Funds', 'Insufficient balance for this withdrawal');
         return;
     }
 
@@ -3172,12 +3255,14 @@ async function submitWithdrawal() {
                        || userData.paymentInfo?.[methodId.toLowerCase()]; 
 
     if (!accountNum) {
-         showTopNotification(`Please link your ${selectedWithdrawMethod.name} account first`);
+         triggerToast('warning', 'Account Needed', `Please link your ${selectedWithdrawMethod.name} account first`);
          // Redirect to link page
          showSection('payment-methods-section');
          renderPaymentMethodsPage();
          return;
     }
+
+    // 3. UI Loading State
 
     // 3. UI Loading State
     const btn = document.querySelector('.withdraw-btn');
@@ -3241,7 +3326,7 @@ async function submitWithdrawal() {
 
     } catch (error) {
         console.error("Withdrawal failed:", error);
-        showTopNotification("Network error. Please try again.");
+        triggerToast('error', 'Network Error', 'Network error. Please try again.');
     } finally {
         // Reset Button
         btn.innerHTML = originalText;
@@ -3297,10 +3382,10 @@ async function submitWithdrawal() {
     /* ================= SYSTEM ALERTS LOGIC ================= */
 
     // 1. Trigger Error Modal
+    // 1. Trigger Error Modal
     function triggerError(title, msg) {
-    // Instead of opening the old modal, we show a Droid Notification
-    showTopNotification(msg);
-}
+        triggerToast('error', title || 'System Error', msg);
+    }
     // 2. Trigger Confirmation Modal
     let onConfirmCallback = null; // Store the function to run
 
