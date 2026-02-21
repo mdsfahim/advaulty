@@ -2444,6 +2444,7 @@ function hideInstructionsPopup() {
 let unsubscribeNotifications = null;
 
 // 1. Real-time Listener (Efficient: Only downloads 1 doc to check status)
+// 1. Real-time Listener (Efficient: Only downloads 1 doc to check status)
 function setupNotificationListener() {
     // If we have a listener already, don't create another
     if (unsubscribeNotifications) return;
@@ -2451,22 +2452,36 @@ function setupNotificationListener() {
     const lastCheck = userData.lastNotificationCheck || new Date(0).toISOString();
     
     // Query: Get notifications newer than the user's last check
-    // Limit(1) ensures we don't download everything, saving Firebase costs
-    const q = db.collection("adv2_notifications") // Ensure this collection exists in Firebase
+    const q = db.collection("adv2_notifications") 
         .where("createdAt", ">", lastCheck)
         .orderBy("createdAt", "desc")
         .limit(1);
 
+    // CRITICAL: We use a flag so we don't spam the user with a popup 
+    // for old unread messages the second they open the app.
+    let isFirstLoad = true; 
+
     unsubscribeNotifications = q.onSnapshot((snapshot) => {
         const dot = document.getElementById("notificationDot");
-        if (dot) {
-            // Show red dot if snapshot is not empty
-            if (!snapshot.empty) {
-                dot.classList.remove("hidden");
-            } else {
-                dot.classList.add("hidden");
+        
+        if (!snapshot.empty) {
+            // 1. Show the red dot on the bell icon
+            if (dot) dot.classList.remove("hidden");
+            
+            // 2. If the app is already open and a BRAND NEW notification arrives, trigger the popup!
+            if (!isFirstLoad) {
+                const data = snapshot.docs[0].data();
+                const title = data.title || "New Notification";
+                
+                // Use the premium iOS-style notification engine we built earlier
+                showTopNotification(`🔔 New Alert: ${title}`, 5000);
             }
+        } else {
+            // Hide the red dot if there are no new notifications
+            if (dot) dot.classList.add("hidden");
         }
+        
+        isFirstLoad = false; // Mark initial load as complete
     });
 }
 
