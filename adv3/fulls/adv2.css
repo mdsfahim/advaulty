@@ -3599,15 +3599,14 @@ backdrop-filter: blur(5px); /* Adds blur effect to background */
 }
 /* ================= ANDROID NOTIFICATION OVERLAY ================= */
 #notification-container {
-  position: fixed;
-  top: calc(env(safe-area-inset-top) + 1rem);
+    position: fixed;
+    /* Force it down by 60px to be safe on all devices */
+    top: 60px !important; 
     left: 1rem;
     right: 1rem;
-  z-index: 7000 !important; /* Above all modals */
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
+    z-index: 7000;
+    pointer-events: none;
+    padding-top: 0 !important;
 }
 
 .droid-notify {

@@ -1299,7 +1299,7 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
 
 const activeNotifications = []; 
 const GAP_BETWEEN_NOTIFS = 10; 
-const TOP_MARGIN = 16;         
+const TOP_MARGIN = 60;         
 
 function showTopNotification(message, duration = 4000) {
     let config = {
