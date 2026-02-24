@@ -25,6 +25,7 @@
         name: "",
         username: "",
         balance: 0.00,
+        spinKeys: 0,
         totalEarnings: 0.00,
         adsWatched: 0,
         completedTasks: 0,
@@ -269,7 +270,9 @@
         if (document.getElementById('earningsPerAdDisplay')) {
             document.getElementById('earningsPerAdDisplay').textContent = (adminSettings.earningsPerAd || 0.05).toFixed(2);
         }
-        
+        if (document.getElementById('libtlRewardDisplay')) {
+            document.getElementById('libtlRewardDisplay').textContent = (adminSettings.earningsPerAd || 0.05).toFixed(2);
+        }
         if (document.getElementById('adDurationDisplay')) {
             document.getElementById('adDurationDisplay').textContent = adminSettings.adDuration || 15;
         }
@@ -336,7 +339,10 @@
         injectPassiveAds();
         
         renderExtraAds();
-        
+        // Determine which section is currently active on load
+        const activeSectionEl = document.querySelector('.section.active, .section-fullscreen.active');
+        const currentSectionId = activeSectionEl ? activeSectionEl.id : 'home-section';
+        renderBannerAds(currentSectionId);
         updateUI();
     }
     
@@ -785,6 +791,59 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
     
     // --- Dynamic Extra Ads Rendering ---
     // --- Dynamic Extra Ads Rendering (Updated Style) ---
+    
+    function renderBannerAds(activeSection) {
+    // 1. Grab the exact object names your Admin Panel uses
+    const bannerAds = adminSettings.bannerAds || {};
+    const nativeAd = adminSettings.nativeAd || {};
+
+    // 2. Map the containers
+    const homeCont = document.getElementById('homeBannerContainer');
+    const earnCont = document.getElementById('earnBannerContainer');
+    const gameCont = document.getElementById('gameBannerContainer');
+    const profileCont = document.getElementById('profileBannerContainer');
+    const nativeCont = document.getElementById('profileNativeBannerContainer');
+
+    // 3. Helper for the 4 main banners (Home, Earn, Game, Profile)
+    const handleMainBanner = (container, codeString, isSectionActive) => {
+        if (!container) return;
+        
+        // If the Master Banner toggle is OFF in the admin panel, or the box was empty, clear it
+        if (!bannerAds.active || !codeString || codeString.trim() === "") {
+            container.innerHTML = "";
+            return;
+        }
+
+        // SAFE LOAD: Inject the script if they are on the tab and it hasn't loaded yet
+        if (isSectionActive && container.innerHTML.trim() === "") {
+            insertAdHTML(container, codeString);
+        }
+    };
+
+    // 4. Helper specifically for the Native Banner (which has a slightly different format)
+    const handleNativeBanner = (container, nativeObj, isSectionActive) => {
+        if (!container) return;
+        
+        if (!nativeObj || !nativeObj.active || !nativeObj.code || nativeObj.code.trim() === "") {
+            container.innerHTML = "";
+            return;
+        }
+
+        if (isSectionActive && container.innerHTML.trim() === "") {
+            insertAdHTML(container, nativeObj.code);
+        }
+    };
+
+    // 5. Fire the injections based on the exact keys from your Admin Panel!
+    handleMainBanner(homeCont, bannerAds.home, activeSection === 'home-section');
+    handleMainBanner(earnCont, bannerAds.earn, activeSection === 'earn-section');
+    handleMainBanner(gameCont, bannerAds.game, activeSection === 'games-section');
+    handleMainBanner(profileCont, bannerAds.profile, activeSection === 'profile-section');
+    
+    // Native ad processes separately
+    handleNativeBanner(nativeCont, nativeAd, activeSection === 'profile-section');
+}
+    // --- Dynamic Extra Ads Rendering (Updated) ---
     function renderExtraAds() {
         const container = document.getElementById('extraTasksContainer');
         const noAdsMsg = document.getElementById('noAdsMsg');
@@ -793,18 +852,19 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
         
         container.innerHTML = '';
         
-        const validAds = adminSettings.adServices?.filter(s => s.active) || [];
+        // FIX: Filter out items that are 'banner' type
+        // We only want 'smartlink', 'iframe', or undefined types to show as Gift Boxes
+        const validTasks = adminSettings.adServices?.filter(s => s.active && s.type !== 'banner') || [];
         
-        if (validAds.length === 0) {
+        if (validTasks.length === 0) {
             if (noAdsMsg) noAdsMsg.classList.remove('hidden');
             return;
         } else {
             if (noAdsMsg) noAdsMsg.classList.add('hidden');
         }
 
-        validAds.forEach(service => {
+        validTasks.forEach(service => {
             const card = document.createElement('div');
-            // Using the new 'extra-earn-card' class from the new CSS
             card.className = "extra-earn-card";
             card.innerHTML = `
                 <i class="fas fa-gift extra-gift-icon"></i>
@@ -819,7 +879,6 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
             container.appendChild(card);
         });
     }
-    
    // --- Dynamic Ad Popup with Timer & Smartlink Verification ---
     // --- Dynamic Ad Popup with New UI ---
     window.startSpecificAd = function(serviceId) {
@@ -1046,7 +1105,40 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
     }
 
     // ===================== HELPER FUNCTIONS =====================
+    function insertAdHTML(container, htmlCode) {
+    if (!container || !htmlCode) return;
     
+    // Clear previous ad content
+    container.innerHTML = '';
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ad-wrapper';
+    container.appendChild(wrapper);
+
+    // Parse the HTML string
+    const range = document.createRange();
+    range.selectNode(wrapper);
+    const fragment = range.createContextualFragment(htmlCode);
+    wrapper.appendChild(fragment);
+
+    // CRITICAL FIX: Force the browser to execute injected <script> tags
+    // Adsterra/Monetag will not work in an SPA without this step.
+    const scripts = wrapper.querySelectorAll('script');
+    scripts.forEach(oldScript => {
+        const newScript = document.createElement('script');
+        // Copy all attributes (src, type, etc.)
+        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+        // Copy inline script content
+        if (oldScript.innerHTML) {
+            newScript.innerHTML = oldScript.innerHTML;
+        }
+        // Replace the old dead script with the new live one
+        oldScript.parentNode.replaceChild(newScript, oldScript);
+    });
+}
+
+
+
     function toggleAboutModal() {
       const modal = document.getElementById('aboutModal');
       if (modal.classList.contains('show')) {
@@ -1103,33 +1195,13 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
         }
     });
     function initTelegram() {
-    return new Promise((resolve) => {
-        if (window.Telegram?.WebApp) {
-            const tg = window.Telegram.WebApp;
-            
-            tg.ready();
-            tg.expand(); // Force full height
-            
-            // 1. Set the Header Color to match your app header
-            // This makes the Android status bar blend in perfectly
-            if (tg.setHeaderColor) {
-                tg.setHeaderColor('#ffffff'); // Your header background color
+        return new Promise((resolve) => {
+            if (window.Telegram?.WebApp) {
+                Telegram.WebApp.ready();
+                Telegram.WebApp.expand();
+                resolve(true);
+                return;
             }
-            
-            // 2. Set Background Color
-            if (tg.setBackgroundColor) {
-                tg.setBackgroundColor('#f8fafc'); // Your app background color
-            }
-            
-            // 3. Enable Closing Confirmation (Optional, good for earning apps)
-            if (tg.enableClosingConfirmation) {
-                tg.enableClosingConfirmation();
-            }
-
-            resolve(true);
-            return;
-        }
-  
 
             const script = document.createElement('script');
             script.src = 'https://telegram.org/js/telegram-web-app.js';
@@ -1220,144 +1292,173 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
 /**
  * AdVault Intelligent Notification Engine with Local History
  */
+/**
+ * AdVault IOS-Style Stacking Notification Engine
+ * Automatically maps security, earnings, and system alerts with swipe physics.
+ */
+
+const activeNotifications = []; 
+const GAP_BETWEEN_NOTIFS = 10; 
+const TOP_MARGIN = 16;         
+
 function showTopNotification(message, duration = 4000) {
-    const container = document.getElementById('notification-container');
-    if (!container) return;
-
-    const el = document.createElement('div');
-    el.className = 'droid-notify';
-
     let config = {
-        title: "AdVault",
-        icon: '<i class="fas fa-bell"></i>',
-        bgColor: "icon-bg-info",
-        type: "info", // for history filtering
+        title: "System Update",
+        icon: '<i class="fas fa-bell text-blue-500" style="margin-right: 6px;"></i>',
+        type: "info",
         msg: message
     };
 
     const lowerMsg = message.toLowerCase();
 
+    // Intelligent Text Mapping
     if (lowerMsg.includes('invalid') || lowerMsg.includes('fail') || lowerMsg.includes('error') || lowerMsg.includes('penalty') || lowerMsg.includes('link your')) {
         config.title = "Security Alert";
-        config.icon = '<i class="fas fa-exclamation-circle"></i>';
-        config.bgColor = "icon-bg-error";
+        config.icon = '<i class="fas fa-exclamation-circle text-red-500" style="margin-right: 6px;"></i>';
         config.type = "security";
-    } else if (lowerMsg.includes('earn') || lowerMsg.includes('+')) {
+    } else if (lowerMsg.includes('earn') || lowerMsg.includes('+') || lowerMsg.includes('success') || lowerMsg.includes('submitted')) {
         config.title = "Payment Received";
-        config.icon = '<i class="fas fa-coins"></i>';
-        config.bgColor = "icon-bg-earn";
+        config.icon = '<i class="fas fa-check-circle text-green-500" style="margin-right: 6px;"></i>';
         config.type = "earning";
         config.msg = message.replace(/(\+?\d+\.\d+\s?BDT)/g, '<span class="money-green">$1</span>');
-    } else if (lowerMsg.includes('success') || lowerMsg.includes('submitted')) {
-        config.title = "Action Successful";
-        config.icon = '<i class="fas fa-check-circle"></i>';
-        config.bgColor = "icon-bg-earn";
-        config.type = "success";
     }
 
-    // --- SAVE TO LOCAL STORAGE ---
-    saveNotificationToHistory(config.title, message, config.type);
+    // Save to local history
+    if(typeof saveNotificationToHistory === 'function') {
+        saveNotificationToHistory(config.title, message, config.type);
+    }
 
-    el.innerHTML = `
-        <div class="notify-header">
-            <div class="header-left">
-                <div class="app-icon-small">
-                    <img src="https://worldnews24x7.infy.uk/image/advault3.png" class="w-full h-full object-cover">
-                </div>
-                <span class="app-name">AdVault</span>
-                <span class="text-[10px] text-slate-300">•</span>
-                <span class="notify-time">now</span>
+    // 1. Create Element
+    const notifEl = document.createElement('div');
+    notifEl.classList.add('notification');
+    notifEl.innerHTML = `
+        <img src="https://worldnews24x7.infy.uk/image/advault3.png" alt="AdVault" class="notif-avatar">
+        <div class="notif-text-wrapper">
+            <div class="notif-header">
+                <span class="notif-app-name">AdVault Alert</span>
+                <span class="notif-time">now</span>
             </div>
-        </div>
-        <div class="notify-content">
-            <div class="text-area">
-                <h3 class="notify-title">${config.title}</h3>
-                <p class="notify-body">${config.msg}</p>
-            </div>
-            <div class="large-icon-box ${config.bgColor}">
-                ${config.icon}
-            </div>
+            <div class="notif-title">${config.icon} ${config.title}</div>
+            <div class="notif-desc">${config.msg}</div>
         </div>
     `;
-
-    container.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('show'));
-    attachDroidSwipe(el);
-
-    const timer = setTimeout(() => {
-        if(document.body.contains(el)) dismissDroid(el, 'swipe-up');
-    }, duration);
-    el.dataset.timerId = timer;
-}
-
-/**
- * Local Storage History Manager
- */
-function saveNotificationToHistory(title, message, type) {
-    const MAX_HISTORY = 30; // Keep only last 30
-    let history = JSON.parse(localStorage.getItem('advault_notif_history') || '[]');
     
-    const newEntry = {
-        id: Date.now(),
-        title: title,
-        message: message,
-        type: type,
-        time: new Date().toISOString()
+    // Inject directly to body
+    document.body.appendChild(notifEl);
+
+    // 2. Create Tracker
+    const notifObj = {
+        el: notifEl,
+        isExpanded: false,
+        isDismissing: false,
+        timer: null
     };
 
-    history.unshift(newEntry); // Add to start
-    if (history.length > MAX_HISTORY) history.pop(); // Remove oldest
-    
-    localStorage.setItem('advault_notif_history', JSON.stringify(history));
+    activeNotifications.unshift(notifObj);
+
+    // 3. Drop in
+    requestAnimationFrame(() => layoutNotifications());
+
+    // 4. Expand
+    setTimeout(() => {
+        notifObj.isExpanded = true;
+        notifEl.classList.add('expanded');
+        layoutNotifications(); 
+    }, 300);
+
+    // 5. Setup Auto-remove & Gestures
+    notifObj.timer = setTimeout(() => dismissNotification(notifObj, 'auto'), duration);
+    setupGestures(notifObj);
 }
-// Gesture Handling Function
-function attachDroidSwipe(element) {
+
+function layoutNotifications() {
+    let currentTopPosition = TOP_MARGIN;
+
+    activeNotifications.forEach((notifObj) => {
+        if (notifObj.isDismissing) return; 
+
+        notifObj.el.style.top = `${currentTopPosition}px`;
+        const currentHeight = notifObj.isExpanded ? 76 : 56;
+        currentTopPosition += currentHeight + GAP_BETWEEN_NOTIFS;
+    });
+}
+
+function dismissNotification(notifObj, method, dragX = 0, dragY = 0) {
+    if (notifObj.isDismissing) return;
+    notifObj.isDismissing = true;
+    clearTimeout(notifObj.timer); 
+
+    const index = activeNotifications.indexOf(notifObj);
+    if (index > -1) activeNotifications.splice(index, 1);
+
+    layoutNotifications();
+
+    if (method === 'auto' || method === 'up') {
+        notifObj.el.classList.remove('expanded');
+        setTimeout(() => {
+            notifObj.el.style.top = '-100px'; 
+            setTimeout(() => notifObj.el.remove(), 500);
+        }, 400);
+    } 
+    else if (method === 'left') {
+        notifObj.el.style.transform = `translateX(calc(-50% - 150vw)) translateY(${dragY}px)`;
+        notifObj.el.style.opacity = '0';
+        setTimeout(() => notifObj.el.remove(), 400);
+    } 
+    else if (method === 'right') {
+        notifObj.el.style.transform = `translateX(calc(-50% + 150vw)) translateY(${dragY}px)`;
+        notifObj.el.style.opacity = '0';
+        setTimeout(() => notifObj.el.remove(), 400);
+    }
+}
+
+function setupGestures(notifObj) {
+    const el = notifObj.el;
     let startX = 0, startY = 0, currentX = 0, currentY = 0, isDragging = false;
-    const threshold = 80;
 
     const onStart = (e) => {
-        clearTimeout(element.dataset.timerId);
         isDragging = true;
         startX = (e.type === 'touchstart') ? e.touches[0].clientX : e.clientX;
         startY = (e.type === 'touchstart') ? e.touches[0].clientY : e.clientY;
-        element.style.transition = 'none';
+        el.classList.add('dragging');
+        clearTimeout(notifObj.timer); 
     };
 
     const onMove = (e) => {
         if (!isDragging) return;
-        const x = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX;
-        const y = (e.type === 'touchmove') ? e.touches[0].clientY : e.clientY;
-        currentX = x - startX;
-        currentY = y - startY;
-        element.style.transform = `translate(${currentX}px, ${currentY}px)`;
-        const dist = Math.sqrt(currentX*currentX + currentY*currentY);
-        element.style.opacity = Math.max(0.5, 1 - (dist / 300));
+        currentX = ((e.type === 'touchmove') ? e.touches[0].clientX : e.clientX) - startX;
+        currentY = ((e.type === 'touchmove') ? e.touches[0].clientY : e.clientY) - startY;
+
+        let dragY = currentY > 0 ? currentY * 0.2 : currentY; 
+        el.style.transform = `translateX(calc(-50% + ${currentX}px)) translateY(${dragY}px)`;
+        el.style.opacity = 1 - (Math.max(Math.abs(currentX), Math.abs(dragY)) / 300);
     };
 
     const onEnd = () => {
         if (!isDragging) return;
         isDragging = false;
-        element.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease';
-        if (currentX > threshold) dismissDroid(element, 'swipe-right');
-        else if (currentX < -threshold) dismissDroid(element, 'swipe-left');
-        else if (currentY < -40) dismissDroid(element, 'swipe-up');
+        el.classList.remove('dragging');
+
+        const swipeThreshold = 50;
+
+        if (currentX < -swipeThreshold) dismissNotification(notifObj, 'left', currentX, currentY); 
+        else if (currentX > swipeThreshold) dismissNotification(notifObj, 'right', currentX, currentY);  
+        else if (currentY < -swipeThreshold) dismissNotification(notifObj, 'up', currentX, currentY); 
         else {
-            element.style.transform = 'translate(0, 0)';
-            element.style.opacity = '1';
+            el.style.transform = 'translateX(-50%) translateY(0)';
+            el.style.opacity = '1';
+            notifObj.timer = setTimeout(() => dismissNotification(notifObj, 'auto'), 3000);
         }
     };
 
-    element.addEventListener('touchstart', onStart);
-    element.addEventListener('touchmove', onMove);
-    element.addEventListener('touchend', onEnd);
-    element.addEventListener('mousedown', onStart);
+    el.addEventListener('touchstart', onStart, {passive: true});
+    el.addEventListener('touchmove', onMove, {passive: true});
+    el.addEventListener('touchend', onEnd);
+    
+    // Desktop fallback just in case testing on PC
+    el.addEventListener('mousedown', onStart);
     window.addEventListener('mousemove', (e) => isDragging && onMove(e));
     window.addEventListener('mouseup', () => isDragging && onEnd());
-}
-
-function dismissDroid(element, animClass) {
-    element.classList.add(animClass);
-    setTimeout(() => { if(element.parentNode) element.parentNode.removeChild(element); }, 300);
 }
 
     /* ================= SUCCESS POPUP LOGIC ================= */
@@ -1454,7 +1555,11 @@ function dismissDroid(element, animClass) {
             document.getElementById('new-withdraw-total-earn').textContent = `BDT ${userData.totalEarnings.toFixed(2)}`;
             document.getElementById('new-withdraw-total-out').textContent = `BDT ${userData.totalWithdrawn.toFixed(2)}`;
         }
-
+// Update mini-avatar in the new bottom navigation
+    if (userData.profilePhoto) {
+        const navProfileImg = document.getElementById('nav-profile-img');
+        if (navProfileImg) navProfileImg.src = userData.profilePhoto;
+    }
         // 5. Update Profile Section (CRASH FIX IS HERE)
         // We now check if each element exists before setting textContent
         if (document.getElementById('profileName')) {
@@ -1558,21 +1663,211 @@ function dismissDroid(element, animClass) {
     }
 
     function checkDailyReset() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toLocaleDateString('en-CA'); // Fixes timezone bug
         if (userData.lastResetDate !== today) {
             userData.completedTasks = 0;
+            userData.spinKeys = (userData.spinKeys || 0) + 2; // Give 2 daily keys
             userData.lastResetDate = today;
             saveUserData();
         }
     }
+    /* ================= SPIN & WIN LOGIC ================= */
+let isSpinning = false;
+let currentRotation = 0;
+let pendingSpinReward = null;
+
+const spinSegments = [
+    { label: "0.5 BDT", type: "bdt", value: 0.5, start: 0, end: 45 },
+    { label: "0.2 BDT", type: "bdt", value: 0.2, start: 45, end: 90 },
+    { label: "0.8 BDT", type: "bdt", value: 0.8, start: 90, end: 135 },
+    { label: "0.1 BDT", type: "bdt", value: 0.1, start: 135, end: 180 },
+    { label: "0.9 BDT", type: "bdt", value: 0.9, start: 180, end: 225 },
+    { label: "Try Again", type: "empty", value: 0, start: 225, end: 270 },
+    { label: "+1 Key", type: "key", value: 1, start: 270, end: 315 },
+    { label: "0.4 BDT", type: "bdt", value: 0.4, start: 315, end: 360 }
+];
+
+function updateSpinUI() {
+    const keyDisplay = document.getElementById('spin-key-count');
+    const spinBtn = document.getElementById('main-spin-btn');
+    
+    if(keyDisplay) keyDisplay.textContent = userData.spinKeys || 0;
+    
+    if(spinBtn) {
+        if((userData.spinKeys || 0) > 0) {
+            spinBtn.textContent = "SPIN NOW";
+            spinBtn.className = "w-full py-4 rounded-2xl font-extrabold text-lg transition-all shadow-lg text-slate-900 bg-gradient-to-r from-yellow-300 to-yellow-500 hover:scale-[0.98]";
+        } else {
+            spinBtn.textContent = "NEED KEYS TO SPIN";
+            spinBtn.className = "w-full py-4 rounded-2xl font-extrabold text-lg transition-all shadow-inner text-slate-400 bg-slate-800 cursor-not-allowed";
+        }
+    }
+}
+
+async function watchAdForKey() {
+    if (maintenanceMode) return showTopNotification('App under maintenance.');
+    if (isSpinning) return;
+
+    const btn = document.getElementById('get-key-ad-btn');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Ad...';
+    btn.style.pointerEvents = 'none';
+
+    try {
+        // Randomly choose between Adsgram (50%) and LibTL (50%)
+        const useAdsgram = Math.random() > 0.5;
+
+        if (useAdsgram && window.AdsgramController) {
+            await window.AdsgramController.show();
+            grantKeySuccess();
+        } else {
+            // Fallback to LibTL
+            await loadAdSDK();
+            startAdTimer();
+            await show_9683040();
+            if (checkAdCompletion()) {
+                grantKeySuccess();
+            }
+        }
+    } catch (e) {
+        console.error("Ad failed:", e);
+        showTopNotification("Ad unavailable right now. Try again.");
+    } finally {
+        btn.innerHTML = oldHtml;
+        btn.style.pointerEvents = 'auto';
+    }
+}
+
+function grantKeySuccess() {
+    userData.spinKeys = (userData.spinKeys || 0) + 1;
+    saveUserData();
+    updateSpinUI();
+    showTopNotification("🎉 +1 Key Earned!");
+}
+
+function startSpin() {
+    if ((userData.spinKeys || 0) <= 0 || isSpinning) return;
+
+    // Deduct Key
+    userData.spinKeys--;
+    updateSpinUI();
+    
+    isSpinning = true;
+    const btn = document.getElementById('main-spin-btn');
+    btn.textContent = "SPINNING...";
+    btn.className = "w-full py-4 rounded-2xl font-extrabold text-lg text-slate-400 bg-slate-800 cursor-not-allowed";
+
+    const wheel = document.getElementById('spinWheelElement');
+    
+    // Calculate random spin
+    const randomDeg = Math.floor(2500 + Math.random() * 360);
+    currentRotation += randomDeg; 
+    
+    wheel.style.transform = `rotate(-${currentRotation}deg)`;
+
+    // Wait for CSS transition to finish
+    setTimeout(() => {
+        isSpinning = false;
+        calculateSpinResult(currentRotation);
+    }, 4000);
+}
+
+function calculateSpinResult(rotation) {
+    const normalized = rotation % 360;
+    const winner = spinSegments.find(seg => normalized >= seg.start && normalized < seg.end);
+    
+    if (winner) {
+        pendingSpinReward = winner;
+        const modal = document.getElementById('spinResultModal');
+        const title = document.getElementById('spinResultTitle');
+        const msg = document.getElementById('spinResultMsg');
+        const icon = document.getElementById('spinResultIcon');
+
+        if (winner.type === "empty") {
+            title.textContent = "OH NO!";
+            title.className = "text-2xl font-extrabold text-slate-400 mb-2";
+            msg.textContent = "Better luck next time!";
+            icon.className = "fas fa-frown text-4xl text-slate-400";
+            document.getElementById('claimSpinRewardBtn').textContent = "CLOSE";
+        } else if (winner.type === "key") {
+            title.textContent = "LUCKY!";
+            title.className = "text-2xl font-extrabold text-yellow-400 mb-2";
+            msg.textContent = "You found an extra Key!";
+            icon.className = "fas fa-key text-4xl text-yellow-400";
+            document.getElementById('claimSpinRewardBtn').textContent = "AWESOME";
+        } else {
+            title.textContent = "HUGE WIN!";
+            title.className = "text-2xl font-extrabold text-yellow-400 mb-2";
+            msg.textContent = `You won ${winner.value} BDT!`;
+            icon.className = "fas fa-coins text-4xl text-yellow-400";
+            document.getElementById('claimSpinRewardBtn').textContent = "AWESOME";
+        }
+
+        modal.classList.add('show');
+    }
+}
+
+async function claimSpinReward() {
+    const modal = document.getElementById('spinResultModal');
+    const btn = document.getElementById('claimSpinRewardBtn');
+
+    // If it was a loss, just close it
+    if (pendingSpinReward.type === "empty") {
+        modal.classList.remove('show');
+        updateSpinUI();
+        return;
+    }
+
+    // Prepare to show post-spin ad
+    const originalText = btn.textContent;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Claiming...';
+    btn.style.pointerEvents = 'none';
+
+    try {
+        // Require Adsgram ad to claim the reward
+        if (window.AdsgramController) {
+            await window.AdsgramController.show();
+        } else {
+            // Fallback ad if Adsgram fails
+             await loadAdSDK();
+             await show_9683040();
+        }
+
+        // AD FINISHED -> GIVE REWARD
+        if (pendingSpinReward.type === "key") {
+            userData.spinKeys = (userData.spinKeys || 0) + 1;
+        } else if (pendingSpinReward.type === "bdt") {
+            userData.balance += pendingSpinReward.value;
+            userData.totalEarnings += pendingSpinReward.value;
+            
+            if(typeof HistoryManager !== 'undefined') {
+                HistoryManager.addRecord('task', pendingSpinReward.value, 'Lucky Wheel Win');
+            }
+        }
+
+        await saveUserData();
+        updateUI(); // Updates main header balance
+        showTopNotification(`Successfully claimed ${pendingSpinReward.label}!`);
+
+    } catch (e) {
+        console.error("Post-spin ad failed", e);
+        showTopNotification("Failed to verify reward. Please try again.");
+    } finally {
+        modal.classList.remove('show');
+        btn.textContent = originalText;
+        btn.style.pointerEvents = 'auto';
+        pendingSpinReward = null;
+        updateSpinUI();
+    }
+}
 
     function showSection(targetId) {
     console.log("Navigating to:", targetId);
 
-    // 1. Reset ALL sections (Force hide them)
+    // 1. Reset ALL sections
     document.querySelectorAll('.section, .section-fullscreen').forEach(s => {
         s.classList.remove('active');
-        s.style.display = ''; // Clear any stuck inline styles
+        s.style.display = ''; 
     });
 
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -1587,6 +1882,8 @@ function dismissDroid(element, animClass) {
     const targetNavItem = document.querySelector(`.nav-item[data-target="${targetId}"]`);
     if (targetNavItem) targetNavItem.classList.add('active');
     
+ // ... (keep the top part of showSection the same) ...
+
     // 4. Handle Top Header Visibility
     const hideHeaderSections = [
         'profile-section', 
@@ -1594,7 +1891,9 @@ function dismissDroid(element, animClass) {
         'withdrawal-history-section', 
         'earning-history-section', 
         'payment-methods-section',
-        'notif-history-section' 
+        'notif-history-section',
+        'spin-game-section',    // <--- ADD THIS
+        'games-section'         // <--- ADD THIS TOO (Looks better without header)
     ];
     
     if (hideHeaderSections.includes(targetId)) {
@@ -1603,7 +1902,14 @@ function dismissDroid(element, animClass) {
         document.body.classList.remove('header-hidden');
     }
 
-    // 5. Trigger Page Renders
+    // ==========================================
+    // 5. TRIGGER AD LOADING (THE FIX)
+    // ==========================================
+    
+  
+
+
+    // Existing triggers...
     if (targetId === 'notif-history-section') {
         if(typeof renderNotifHistory === 'function') renderNotifHistory();
     }
@@ -1622,6 +1928,14 @@ function dismissDroid(element, animClass) {
     }
     if (targetId === 'profile-section') {
         if(typeof updateUI === 'function') updateUI();
+    }
+    if (targetId === 'earn-section' || targetId === 'profile-section' || targetId === 'home-section' || targetId === 'games-section') {
+        // Small delay ensures the tab is fully visible before asking Adsterra to load
+        setTimeout(() => {
+            if(typeof renderBannerAds === 'function') {
+                renderBannerAds(targetId); 
+            }
+        }, 50);
     }
 }
 
@@ -1659,15 +1973,57 @@ function dismissDroid(element, animClass) {
     }
     
     async function detectCountry() {
-        try {
-            const response = await fetch('https://ipapi.co/json/');
-            const data = await response.json();
-            return data.country;
-        } catch (error) {
-            console.error('Country detection failed:', error);
-            return 'BD';
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        // 1. Fetch from api.country.is (Fast & Free)
+        const response = await fetch('https://api.country.is/', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!response.ok) throw new Error("Geo-IP API unavailable");
+
+        const data = await response.json();
+
+        // 2. Update UI with IMAGE FLAG
+        if (data.country) {
+            const countryCode = data.country; // e.g., "US", "BD"
+            
+            // Get Elements
+            const flagImg = document.getElementById('country-flag');
+            const codeText = document.getElementById('country-code-text');
+
+            // Set Text Code
+            if (codeText) codeText.textContent = countryCode;
+
+            // Set Flag Image (Lower case code required for URL)
+            if (flagImg) {
+                flagImg.src = `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+            }
+
+            // Save to User Data
+            if (typeof userData !== 'undefined') {
+                userData.country = countryCode;
+                userData.countryCode = countryCode;
+            }
+        }
+
+    } catch (error) {
+        console.warn("Country detection failed. Using default.");
+        
+        // Fallback to "World" Flag
+        const flagImg = document.getElementById('country-flag');
+        const codeText = document.getElementById('country-code-text');
+
+        if (codeText) codeText.textContent = "INT";
+        if (flagImg) flagImg.src = "https://flagcdn.com/w40/un.png"; // UN Flag
+
+        if (typeof userData !== 'undefined') {
+            userData.country = "International";
+            userData.countryCode = "INT";
         }
     }
+}
     
     function setCountryFlag(country) {
         const flagElement = document.getElementById('country-flag');
@@ -1710,7 +2066,61 @@ function dismissDroid(element, animClass) {
         
         flagElement.textContent = flagMap[country] || '';
     }
+// ================= MULTI-STATE DYNAMIC ALERTS (ERRORS & WARNINGS) =================
 
+const toastIconMap = {
+    'success': 'check_circle',
+    'error': 'error',
+    'warning': 'warning',
+    'info': 'info'
+};
+
+function triggerToast(type, title, message) {
+    const container = document.getElementById('toast-container');
+    if (!container) return; // Failsafe
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const iconName = toastIconMap[type] || 'notifications';
+
+    toast.innerHTML = `
+        <div class="toast-icon-wrapper">
+            <span class="material-symbols-outlined">${iconName}</span>
+        </div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-desc">${message}</div>
+        </div>
+    `;
+
+    container.prepend(toast);
+
+    // Play entry animation
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    // Auto-Remove Timer (4 seconds)
+    const removeTimer = setTimeout(() => dismissToast(toast), 4000);
+
+    // Dismiss on click
+    toast.addEventListener('click', () => {
+        clearTimeout(removeTimer);
+        dismissToast(toast);
+    });
+}
+
+function dismissToast(toast) {
+    toast.classList.remove('show');
+    toast.style.transform = 'translateY(-20px) scale(0.9)';
+    
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 400);
+}
     function applyPenalty() {
         const penaltyEnabled = adminSettings.enablePenalty !== false;
         if (!penaltyEnabled) return;
@@ -1805,7 +2215,7 @@ function dismissDroid(element, animClass) {
         const requiredDuration = (adminSettings.adDuration || 15) * 1000;
         if (elapsed < requiredDuration) {
             applyPenalty();
-            showTopNotification(`Warning: Please watch ads for full ${adminSettings.adDuration || 15} seconds to earn rewards`, 5000);
+            triggerToast('error', 'Task Cancelled', `Please watch ads for full ${adminSettings.adDuration || 15} seconds.`);
             return false;
         }
         return true;
@@ -1872,60 +2282,109 @@ function hideInstructionsPopup() {
         }
 
         // 3. Start Ad Task button
+        // ========================================================
+        // 3A. MAIN START AD TASK BUTTON (NOW USES ADSGRAM)
+        // ========================================================
         const startEarningAd = document.getElementById('startEarningAd');
         const adButtonText = document.getElementById('adButtonText');
         
-        if (startEarningAd) {
+      if (startEarningAd) {
             startEarningAd.addEventListener('click', async () => {
-                if (maintenanceMode) {
-                    showTopNotification('App is under maintenance. Please try again later.');
-                    return;
-                }
-                
-                if (penaltyActive) {
-                    showTopNotification('Please wait until the penalty timer expires to continue');
-                    return;
-                }
-                
-                if (userData.completedTasks >= userData.totalTasks) {
-                    showTopNotification('All tasks completed for today!');
-                    return;
-                }
+                if (maintenanceMode) return triggerToast('warning', 'Maintenance', 'App is under maintenance. Please try again later.');
+                if (penaltyActive) return triggerToast('warning', 'Penalty Active', 'Please wait until the penalty timer expires to continue');
+                if (userData.completedTasks >= userData.totalTasks) return triggerToast('info', 'Daily Limit', 'All tasks completed for today!');
 
                 startEarningAd.disabled = true;
-                adButtonText.innerHTML = '<div class="spinner"></div> Loading ad...';
+                adButtonText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading ad...';
+                
+                // Initialize Adsgram (Replace "your-block-id" later)
+                if (!window.AdsgramController) {
+                    window.AdsgramController = window.Adsgram ? window.Adsgram.init({ blockId: "int-23202" }) : null;
+                }
+
+                if (window.AdsgramController) {
+                    window.AdsgramController.show().then(async () => {
+                        // AD WATCHED SUCCESSFULLY - REWARD USER
+                        const earnings = adminSettings.earningsPerAd || 0.05;
+                        userData.balance += earnings;
+                        userData.totalEarnings += earnings;
+                        userData.adsWatched++;
+                        userData.completedTasks++;
+                        
+                        if(typeof HistoryManager !== 'undefined') {
+                            HistoryManager.addRecord('ad', earnings, 'Main Video Ad');
+                        }
+                        
+                        await saveUserData();
+                        updateUI();
+                        showTopNotification(`Earned ${earnings.toFixed(2)} BDT!`);
+                        
+                        startEarningAd.disabled = false;
+                        adButtonText.textContent = 'Start Ad Task';
+                        
+                  }).catch((error) => {
+                        // AD FAILED OR CLOSED EARLY
+                        console.error("Adsgram error:", error);
+                        triggerToast('error', 'Ad Failed', 'Ad closed early or unavailable.');
+                        
+                        if (!penaltyActive) {
+                            startEarningAd.disabled = false;
+                            adButtonText.textContent = 'Start Ad Task';
+                        }
+                    });
+                } else {
+                    showTopNotification('Ad system not ready. Please wait.');
+                    startEarningAd.disabled = false;
+                    adButtonText.textContent = 'Start Ad Task';
+                }
+            });
+        }
+
+        // ========================================================
+        // 3B. PREMIUM LIST "WATCH VIDEO" BUTTON (USES OLD LIBTL)
+        // ========================================================
+        const watchVideoLibtlBtn = document.getElementById('watchVideoLibtlBtn');
+        if (watchVideoLibtlBtn) {
+            watchVideoLibtlBtn.addEventListener('click', async () => {
+                if (maintenanceMode) return triggerToast('warning', 'Maintenance', 'App is under maintenance.');
+                if (penaltyActive) return triggerToast('warning', 'Penalty', 'Please wait for penalty to end.');
+                
+                // UI Loading State (Fades the button out slightly so user knows it clicked)
+                watchVideoLibtlBtn.style.opacity = '0.5';
+                watchVideoLibtlBtn.style.pointerEvents = 'none';
                 
                 try {
-                    await loadAdSDK();
+                    // Execute original LibTL Logic
+                    await loadAdSDK(); 
                     startAdTimer();
-                    await show_9683040();
+                    await show_9683040(); 
                     
+                    // Check if they closed it early (Triggers penalty if true)
                     if (!checkAdCompletion()) {
-                        return;
+                        return; 
                     }
                     
+                    // Give Reward
                     const earnings = adminSettings.earningsPerAd || 0.05;
                     userData.balance += earnings;
                     userData.totalEarnings += earnings;
-                    userData.adsWatched++;
-                    userData.completedTasks++;
+                    userData.adsWatched++; // Counts toward lifetime ads
                     
                     if(typeof HistoryManager !== 'undefined') {
-                        HistoryManager.addRecord('ad', earnings, 'Video Ad Reward');
+                        HistoryManager.addRecord('ad', earnings, 'Premium Video Ad');
                     }
                     
                     await saveUserData();
                     updateUI();
-                    showTopNotification(`Earned ${earnings.toFixed(2)} BDT!`);
+                    showTopNotification(`Bonus Earned: ${earnings.toFixed(2)} BDT!`);
                     
-                } catch (error) {
-                    console.error("Ad error:", error);
-                    showTopNotification('Ad failed: ' + error.message);
+              } catch (error) {
+                    console.error("Libtl error:", error);
+                    triggerToast('error', 'Ad Failed', 'Ad failed to load: ' + error.message);
                 } finally {
-                    if (!penaltyActive) {
-                        startEarningAd.disabled = false;
-                        adButtonText.textContent = 'Start Ad Task';
-                    }
+                    // Restore Button UI State
+                    watchVideoLibtlBtn.style.opacity = '1';
+                    watchVideoLibtlBtn.style.pointerEvents = 'auto';
                 }
             });
         }
@@ -2027,6 +2486,7 @@ function hideInstructionsPopup() {
 let unsubscribeNotifications = null;
 
 // 1. Real-time Listener (Efficient: Only downloads 1 doc to check status)
+// 1. Real-time Listener (Efficient: Only downloads 1 doc to check status)
 function setupNotificationListener() {
     // If we have a listener already, don't create another
     if (unsubscribeNotifications) return;
@@ -2034,22 +2494,36 @@ function setupNotificationListener() {
     const lastCheck = userData.lastNotificationCheck || new Date(0).toISOString();
     
     // Query: Get notifications newer than the user's last check
-    // Limit(1) ensures we don't download everything, saving Firebase costs
-    const q = db.collection("adv2_notifications") // Ensure this collection exists in Firebase
+    const q = db.collection("adv2_notifications") 
         .where("createdAt", ">", lastCheck)
         .orderBy("createdAt", "desc")
         .limit(1);
 
+    // CRITICAL: We use a flag so we don't spam the user with a popup 
+    // for old unread messages the second they open the app.
+    let isFirstLoad = true; 
+
     unsubscribeNotifications = q.onSnapshot((snapshot) => {
         const dot = document.getElementById("notificationDot");
-        if (dot) {
-            // Show red dot if snapshot is not empty
-            if (!snapshot.empty) {
-                dot.classList.remove("hidden");
-            } else {
-                dot.classList.add("hidden");
+        
+        if (!snapshot.empty) {
+            // 1. Show the red dot on the bell icon
+            if (dot) dot.classList.remove("hidden");
+            
+            // 2. If the app is already open and a BRAND NEW notification arrives, trigger the popup!
+            if (!isFirstLoad) {
+                const data = snapshot.docs[0].data();
+                const title = data.title || "New Notification";
+                
+                // Use the premium iOS-style notification engine we built earlier
+                showTopNotification(`🔔 New Alert: ${title}`, 5000);
             }
+        } else {
+            // Hide the red dot if there are no new notifications
+            if (dot) dot.classList.add("hidden");
         }
+        
+        isFirstLoad = false; // Mark initial load as complete
     });
 }
 
@@ -2805,7 +3279,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function submitWithdrawal() {
     // 1. Validation Checks
     if (!selectedWithdrawMethod) {
-        showTopNotification("Please select a payment method");
+        triggerToast('warning', 'Method Required', 'Please select a payment method');
         return;
     }
 
@@ -2815,18 +3289,18 @@ async function submitWithdrawal() {
 
     // Check Amount
     if (isNaN(amount) || amount <= 0) {
-        showTopNotification("Please enter a valid amount");
+        triggerToast('error', 'Invalid Amount', 'Please enter a valid amount');
         return;
     }
 
     if (amount < minWithdraw) {
-        showTopNotification(`Minimum withdrawal is BDT ${minWithdraw}`);
+        triggerToast('warning', 'Amount Too Low', `Minimum withdrawal is BDT ${minWithdraw}`);
         return;
     }
 
     // Check Balance
     if (amount > userData.balance) {
-        showTopNotification("Insufficient balance for this withdrawal");
+        triggerToast('error', 'Insufficient Funds', 'Insufficient balance for this withdrawal');
         return;
     }
 
@@ -2838,12 +3312,14 @@ async function submitWithdrawal() {
                        || userData.paymentInfo?.[methodId.toLowerCase()]; 
 
     if (!accountNum) {
-         showTopNotification(`Please link your ${selectedWithdrawMethod.name} account first`);
+         triggerToast('warning', 'Account Needed', `Please link your ${selectedWithdrawMethod.name} account first`);
          // Redirect to link page
          showSection('payment-methods-section');
          renderPaymentMethodsPage();
          return;
     }
+
+    // 3. UI Loading State
 
     // 3. UI Loading State
     const btn = document.querySelector('.withdraw-btn');
@@ -2907,7 +3383,7 @@ async function submitWithdrawal() {
 
     } catch (error) {
         console.error("Withdrawal failed:", error);
-        showTopNotification("Network error. Please try again.");
+        triggerToast('error', 'Network Error', 'Network error. Please try again.');
     } finally {
         // Reset Button
         btn.innerHTML = originalText;
@@ -2963,10 +3439,10 @@ async function submitWithdrawal() {
     /* ================= SYSTEM ALERTS LOGIC ================= */
 
     // 1. Trigger Error Modal
+    // 1. Trigger Error Modal
     function triggerError(title, msg) {
-    // Instead of opening the old modal, we show a Droid Notification
-    showTopNotification(msg);
-}
+        triggerToast('error', title || 'System Error', msg);
+    }
     // 2. Trigger Confirmation Modal
     let onConfirmCallback = null; // Store the function to run
 
@@ -3247,3 +3723,13 @@ function openCommunityGroup() {
     // 2. Open it
     window.open(groupLink, '_blank');
 }
+
+// Add this to the very bottom of adv.js
+window.addEventListener('DOMContentLoaded', () => {
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.setHeaderColor('#ffffff'); // Use '#0f172a' for dark mode
+        tg.ready();
+    }
+});
