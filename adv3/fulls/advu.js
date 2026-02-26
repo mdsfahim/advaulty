@@ -897,6 +897,9 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
             showTopNotification('Please wait until penalty expires.');
             return;
         }
+
+        // --- NEW: LOCK NAVIGATION ---
+        setAdLock(true);
         
         // 1. Get Elements
         const overlay = document.getElementById('adOverlay');
@@ -1005,6 +1008,9 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
             clearInterval(adInterval);
             overlay.style.display = 'none';
             
+            // --- NEW: UNLOCK NAVIGATION ---
+            setAdLock(false);
+            
             // Reward
             const bonus = service.reward || 0.10;
             userData.balance += bonus;
@@ -1018,7 +1024,7 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
             updateUI();
             showSuccessPopup(`🎉 +${bonus.toFixed(2)} BDT Earned!`);
         };
-    }; 
+    };
     
     async function saveDynamicPaymentInfo() {
         const inputs = document.querySelectorAll('#dynamicPaymentForm input');
@@ -1106,14 +1112,52 @@ let statusColor = (data.status === 'approved' || data.status === 'completed') ? 
 
     // ===================== HELPER FUNCTIONS =====================
     
-    // Define your main "root" sections (Tabs)
+    // --- NAVIGATION & AD LOCK VARIABLES ---
+let isAdWatching = false;
 const MAIN_SECTIONS = ['home-section', 'earn-section', 'games-section', 'profile-section'];
+
+// Helper to Lock/Unlock Navigation during Ads
+function setAdLock(locked) {
+    isAdWatching = locked;
+    
+    // 1. Control Bottom Navigation Bar visibility
+    const bottomNav = document.querySelector('.pill-nav-container');
+    if (bottomNav) {
+        // We use 'flex' to show it because your CSS uses flexbox
+        bottomNav.style.display = locked ? 'none' : 'flex';
+    }
+
+    // 2. Control Telegram Back Button
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.BackButton) {
+        if (locked) {
+            // Hide button completely during ad so they can't click it
+            window.Telegram.WebApp.BackButton.hide();
+        } else {
+            // Restore button logic based on current page
+            const activeSection = document.querySelector('.section.active');
+            const currentId = activeSection ? activeSection.id : 'home-section';
+            
+            if (MAIN_SECTIONS.includes(currentId)) {
+                window.Telegram.WebApp.BackButton.hide();
+            } else {
+                window.Telegram.WebApp.BackButton.show();
+            }
+        }
+    }
+}
 
 function setupNavigationHandling() {
     // 1. Handle Browser/System Back Button (popstate)
     window.addEventListener('popstate', (event) => {
+        // --- GUARD: IF AD IS PLAYING, BLOCK BACK ACTION ---
+        if (isAdWatching) {
+            // Push the state back immediately to "cancel" the back button action
+            history.pushState(null, document.title, window.location.href);
+            showTopNotification("⚠️ Please finish watching the ad first!");
+            return;
+        }
+
         if (event.state && event.state.section) {
-            // Navigate to the section from history, pass 'true' to avoid creating a loop
             showSection(event.state.section, true);
         } else {
             // Fallback to home if history is empty
@@ -1124,7 +1168,10 @@ function setupNavigationHandling() {
     // 2. Handle Telegram WebApp Back Button
     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.BackButton) {
         window.Telegram.WebApp.BackButton.onClick(() => {
-            // Trigger the browser back behavior
+            if (isAdWatching) {
+                showTopNotification("⚠️ Please finish watching the ad first!");
+                return;
+            }
             window.history.back();
         });
     }
@@ -1732,6 +1779,9 @@ async function watchAdForKey() {
     if (maintenanceMode) return showTopNotification('App under maintenance.');
     if (isSpinning) return;
 
+    // --- NEW: LOCK NAVIGATION ---
+    setAdLock(true);
+
     const btn = document.getElementById('get-key-ad-btn');
     const oldHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading Ad...';
@@ -1757,6 +1807,9 @@ async function watchAdForKey() {
         console.error("Ad failed:", e);
         showTopNotification("Ad unavailable right now. Try again.");
     } finally {
+        // --- NEW: UNLOCK NAVIGATION ---
+        setAdLock(false);
+
         btn.innerHTML = oldHtml;
         btn.style.pointerEvents = 'auto';
     }
@@ -1842,6 +1895,9 @@ async function claimSpinReward() {
         return;
     }
 
+    // --- NEW: LOCK NAVIGATION ---
+    setAdLock(true);
+
     // Prepare to show post-spin ad
     const originalText = btn.textContent;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Claiming...';
@@ -1877,6 +1933,9 @@ async function claimSpinReward() {
         console.error("Post-spin ad failed", e);
         showTopNotification("Failed to verify reward. Please try again.");
     } finally {
+        // --- NEW: UNLOCK NAVIGATION ---
+        setAdLock(false);
+
         modal.classList.remove('show');
         btn.textContent = originalText;
         btn.style.pointerEvents = 'auto';
@@ -1886,6 +1945,12 @@ async function claimSpinReward() {
 }
 
     function showSection(targetId, isBackNavigation = false) {
+    // --- GUARD: BLOCK NAVIGATION IF AD IS PLAYING ---
+    if (isAdWatching) {
+        console.log("Navigation blocked: Ad is playing");
+        return; 
+    }
+
     console.log("Navigating to:", targetId);
 
     // 1. Reset ALL sections
@@ -1894,7 +1959,8 @@ async function claimSpinReward() {
         s.style.display = ''; 
     });
 
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+    // Reset Nav Items
+    document.querySelectorAll('.nav-item, .pill-item').forEach(item => item.classList.remove('active'));
     
     // 2. Activate the Target Section
     const targetSection = document.getElementById(targetId);
@@ -1903,7 +1969,7 @@ async function claimSpinReward() {
     }
 
     // 3. Update Bottom Nav
-    const targetNavItem = document.querySelector(`.nav-item[data-target="${targetId}"]`);
+    const targetNavItem = document.querySelector(`.nav-item[data-target="${targetId}"], .pill-item[data-target="${targetId}"]`);
     if (targetNavItem) targetNavItem.classList.add('active');
     
     // 4. Handle Top Header Visibility
@@ -1914,8 +1980,8 @@ async function claimSpinReward() {
         'earning-history-section', 
         'payment-methods-section',
         'notif-history-section',
-        'spin-game-section',
-        'games-section' 
+        'spin-game-section', // Fullscreen game
+        'games-section'      // Main game hub
     ];
     
     if (hideHeaderSections.includes(targetId)) {
@@ -1924,12 +1990,10 @@ async function claimSpinReward() {
         document.body.classList.remove('header-hidden');
     }
 
-    // ==========================================
-    // 5. NEW: SYSTEM NAVIGATION & TELEGRAM BACK BUTTON
-    // ==========================================
+    // 5. Manage History & Telegram Button Visibility
     const isMain = MAIN_SECTIONS.includes(targetId);
 
-    // A. Manage Telegram Back Button Visibility
+    // Update Telegram Button Visibility immediately
     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.BackButton) {
         if (isMain) {
             window.Telegram.WebApp.BackButton.hide();
@@ -1938,23 +2002,18 @@ async function claimSpinReward() {
         }
     }
 
-    // B. Manage Browser History (Android Back Button)
-    // Only modify history if this call is NOT coming from a "Back" action
+    // Update Browser History (only if not a "Back" action)
     if (!isBackNavigation) {
         if (isMain) {
-            // If switching between main tabs, REPLACE history (so you don't back-button through tabs)
-            // This creates a clean "Root" state
+            // Replace history for main tabs (avoids long back-button loops)
             history.replaceState({ section: targetId }, "", `#${targetId}`);
         } else {
-            // If opening a sub-section, PUSH history (so Back Button works)
+            // Push history for sub-pages (enables back button)
             history.pushState({ section: targetId }, "", `#${targetId}`);
         }
     }
 
-    // ==========================================
-    // 6. TRIGGER AD & DATA LOADING
-    // ==========================================
-
+    // 6. TRIGGER DATA LOADING & ADS
     if (targetId === 'notif-history-section') {
         if(typeof renderNotifHistory === 'function') renderNotifHistory();
     }
@@ -1974,6 +2033,7 @@ async function claimSpinReward() {
     if (targetId === 'profile-section') {
         if(typeof updateUI === 'function') updateUI();
     }
+    // Load banner ads with a slight delay to ensure container is rendered
     if (targetId === 'earn-section' || targetId === 'profile-section' || targetId === 'home-section' || targetId === 'games-section') {
         setTimeout(() => {
             if(typeof renderBannerAds === 'function') {
@@ -2326,17 +2386,20 @@ function hideInstructionsPopup() {
         }
 
         // 3. Start Ad Task button
-        // ========================================================
+      // ========================================================
         // 3A. MAIN START AD TASK BUTTON (NOW USES ADSGRAM)
         // ========================================================
         const startEarningAd = document.getElementById('startEarningAd');
         const adButtonText = document.getElementById('adButtonText');
         
-      if (startEarningAd) {
+        if (startEarningAd) {
             startEarningAd.addEventListener('click', async () => {
                 if (maintenanceMode) return triggerToast('warning', 'Maintenance', 'App is under maintenance. Please try again later.');
                 if (penaltyActive) return triggerToast('warning', 'Penalty Active', 'Please wait until the penalty timer expires to continue');
                 if (userData.completedTasks >= userData.totalTasks) return triggerToast('info', 'Daily Limit', 'All tasks completed for today!');
+
+                // --- NEW: LOCK NAVIGATION ---
+                setAdLock(true);
 
                 startEarningAd.disabled = true;
                 adButtonText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading ad...';
@@ -2348,6 +2411,9 @@ function hideInstructionsPopup() {
 
                 if (window.AdsgramController) {
                     window.AdsgramController.show().then(async () => {
+                        // --- NEW: UNLOCK NAVIGATION (Success) ---
+                        setAdLock(false);
+
                         // AD WATCHED SUCCESSFULLY - REWARD USER
                         const earnings = adminSettings.earningsPerAd || 0.05;
                         userData.balance += earnings;
@@ -2367,6 +2433,9 @@ function hideInstructionsPopup() {
                         adButtonText.textContent = 'Start Ad Task';
                         
                   }).catch((error) => {
+                        // --- NEW: UNLOCK NAVIGATION (Error/Closed) ---
+                        setAdLock(false);
+
                         // AD FAILED OR CLOSED EARLY
                         console.error("Adsgram error:", error);
                         triggerToast('error', 'Ad Failed', 'Ad closed early or unavailable.');
@@ -2377,6 +2446,9 @@ function hideInstructionsPopup() {
                         }
                     });
                 } else {
+                    // --- NEW: UNLOCK NAVIGATION (System Not Ready) ---
+                    setAdLock(false);
+
                     showTopNotification('Ad system not ready. Please wait.');
                     startEarningAd.disabled = false;
                     adButtonText.textContent = 'Start Ad Task';
@@ -2384,7 +2456,7 @@ function hideInstructionsPopup() {
             });
         }
 
-        // ========================================================
+       // ========================================================
         // 3B. PREMIUM LIST "WATCH VIDEO" BUTTON (USES OLD LIBTL)
         // ========================================================
         const watchVideoLibtlBtn = document.getElementById('watchVideoLibtlBtn');
@@ -2393,6 +2465,9 @@ function hideInstructionsPopup() {
                 if (maintenanceMode) return triggerToast('warning', 'Maintenance', 'App is under maintenance.');
                 if (penaltyActive) return triggerToast('warning', 'Penalty', 'Please wait for penalty to end.');
                 
+                // --- NEW: LOCK NAVIGATION ---
+                setAdLock(true);
+
                 // UI Loading State (Fades the button out slightly so user knows it clicked)
                 watchVideoLibtlBtn.style.opacity = '0.5';
                 watchVideoLibtlBtn.style.pointerEvents = 'none';
@@ -2405,7 +2480,7 @@ function hideInstructionsPopup() {
                     
                     // Check if they closed it early (Triggers penalty if true)
                     if (!checkAdCompletion()) {
-                        return; 
+                        return; // Note: Lock is handled in finally block, so this return is safe
                     }
                     
                     // Give Reward
@@ -2426,6 +2501,9 @@ function hideInstructionsPopup() {
                     console.error("Libtl error:", error);
                     triggerToast('error', 'Ad Failed', 'Ad failed to load: ' + error.message);
                 } finally {
+                    // --- NEW: UNLOCK NAVIGATION (Always runs) ---
+                    setAdLock(false);
+
                     // Restore Button UI State
                     watchVideoLibtlBtn.style.opacity = '1';
                     watchVideoLibtlBtn.style.pointerEvents = 'auto';
